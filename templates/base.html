@@ -16,12 +16,23 @@
             <span>Report Found</span> |
             <span>Browse Items</span> |
             <span>My Reports</span> |
-            <span>Login</span>
+            {% if session.get('user_id') %}
+                <form class="logout-form" action="{{ url_for('logout') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Logout</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a> |
+                <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
         </nav>
         <hr>
     </header>
 
     <main>
+        {% for message in get_flashed_messages() %}
+            <p role="status">{{ message }}</p>
+        {% endfor %}
         {% block content %}{% endblock %}
     </main>
 </body>

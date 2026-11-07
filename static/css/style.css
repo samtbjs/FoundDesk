@@ -13,3 +13,7 @@ a {
 hr {
     margin: 20px 0;
 }
+
+.logout-form {
+    display: inline;
+}

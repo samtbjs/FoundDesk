@@ -16,7 +16,9 @@ FoundDesk/
 ├── db.py
 ├── templates/
 │   ├── base.html
-│   └── index.html
+│   ├── index.html
+│   ├── register.html
+│   └── login.html
 ├── static/
 │   └── css/
 │       └── style.css
@@ -28,6 +30,8 @@ FoundDesk/
 │   ├── .gitkeep
 │   └── database_design.md
 ├── requirements.txt
+├── tests/
+│   └── test_auth.py
 ├── .env                 # Local only; excluded from Git
 ├── .env.example
 ├── .gitignore
@@ -277,6 +281,172 @@ error page or Python syntax check does not verify database queries.
 
 ```text
 feat: connect Flask to PostgreSQL and display item counts
+```
+
+## Phase 4: User authentication
+
+### Files and behavior
+
+`app.py` now has `/register` and `/login` routes: GET displays a form, and POST
+processes it. `/logout` accepts only POST and requires a logged-in session.
+`templates/register.html` and `templates/login.html` extend the existing base
+template. `base.html` displays flashed messages and shows Login/Register links
+for visitors or a Logout form for signed-in users. Future feature labels stay
+inactive. The only CSS addition keeps the Logout form inline with navigation.
+`tests/test_auth.py` uses the standard-library unittest runner; no new dependencies
+or schema changes are needed. Werkzeug is already installed as a Flask dependency.
+
+Registration trims names, trims and lowercases emails, checks field lengths and
+a basic email pattern, and requires matching passwords of 8 to 128 characters.
+The password itself is not trimmed. HTML form checks help users, but server-side
+checks enforce these rules even if browser validation is bypassed. Password
+inputs are never filled back into a rendered form or stored in the session.
+
+### Password hashing and SQL operations
+
+`generate_password_hash()` produces a salted password hash using Werkzeug's
+default algorithm. `check_password_hash()` checks a submitted password against
+that stored hash. Hashing is one-way, so the application never needs to decrypt
+or store a plaintext password. Separate registrations with the same password
+receive different salted hashes.
+
+Registration first checks whether the normalized email exists:
+
+```sql
+SELECT user_id FROM users WHERE email = %s;
+```
+
+If it is unused, registration stores the name, email and generated hash:
+
+```sql
+INSERT INTO users (full_name, email, password_hash, role)
+VALUES (%s, %s, %s, 'student');
+```
+
+The role is fixed in SQL. There is no role field in the registration form, and
+submitting an extra `role=admin` field cannot change it. The database's UNIQUE
+email constraint is the final safeguard, including simultaneous registrations;
+the route catches `UniqueViolation` and displays a duplicate-email message.
+
+Login retrieves the account using this query:
+
+```sql
+SELECT user_id, password_hash, role FROM users WHERE email = %s;
+```
+
+The submitted password is verified in Python. Missing accounts and incorrect
+passwords receive the same message. The `%s` placeholders above are psycopg
+parameters, with values supplied as a separate tuple to `execute()`; they are
+not Python string formatting. Connection context managers commit a successful
+registration, roll back a failed operation and close the connection. Logout
+does not query or delete database records.
+
+### Sessions, route protection and CSRF
+
+After successful login, `session.clear()` removes the old session state. The
+route then stores `user_id` and `role` from the database. Flask stores its default
+session in a signed browser cookie: the signature prevents undetected changes,
+but the contents are not encrypted. Never store passwords, hashes or database
+credentials there. Keep the generated `.env` SECRET_KEY private and stable;
+startup now gives a clear error if it is missing. Cookies use HttpOnly and
+SameSite=Lax. Local development continues to use HTTP on localhost.
+
+The small `login_required` decorator checks for `user_id` and redirects anonymous
+visitors to Login with a flash message. It currently protects Logout and can be
+applied to report routes when those phases are requested. It checks login, not
+administrator privileges. No report routes or administrator features are added.
+
+`csrf_token()` generates a random token and stores it in the session. Every
+state-changing form includes it as a hidden field. A `before_request` function
+checks POST, PUT, PATCH and DELETE requests before their route runs, comparing
+the submitted and session tokens with a constant-time comparison. Invalid or
+missing tokens redirect to Home with a flash message and do not run the action.
+Login, registration and logout are all covered. Successful login clears the old
+token; the next rendered form generates a new one. Logout clears authentication
+and the token, then flashes a confirmation. A later form gets a fresh token.
+
+Use the browser forms when testing: a bare POST from curl has no session token
+and is deliberately rejected. Logging out in one tab also invalidates old form
+tokens in other tabs, so reopen a form if it reports an expired token.
+
+### Promote a test account manually after installing PostgreSQL
+
+First register the test account through the website. In pgAdmin's Query Tool
+connected to `founddesk`, replace the example email below with its normalized
+email. This is an intentional administrator action, not public registration:
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE email = 'your-test-account@example.com'
+RETURNING user_id, email, role;
+```
+
+Expect exactly one returned row. Commit if pgAdmin autocommit is disabled.
+Log out and log in again so the session reads the updated role. Existing sessions
+hold a snapshot of the role from login; this phase does not refresh roles on
+every request. To undo the promotion, run the same UPDATE with `role = 'student'`
+and log in again. No admin registration endpoint is provided.
+
+### Run and test Phase 4
+
+From the FoundDesk folder, using the existing `.env` and virtual environment:
+
+```sh
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m compileall -q app.py db.py tests/test_auth.py
+python -m unittest discover -s tests -v
+python -m flask --app app run
+```
+
+For Windows, use `.venv\Scripts\Activate.ps1` instead of the source command.
+Open http://127.0.0.1:5000/register or http://127.0.0.1:5000/login.
+
+The automated checks cover form rendering, validation, missing/invalid CSRF,
+missing database configuration, password hashing and logout session handling.
+They do not substitute a mock database or test database writes. The logout test
+creates a signed test-client session directly; it does not verify login credentials.
+
+**PostgreSQL-dependent behavior remains unverified.** After installation and
+schema setup (and during the full integration testing after Phase 11), check:
+
+1. Register a test student and confirm success redirects to Login. Query
+   `SELECT user_id, full_name, email, role FROM users;` in pgAdmin and confirm
+   the normalized email and `student` role. Privately inspect `password_hash`
+   to confirm it is a Werkzeug hash rather than the entered password.
+2. Repeat registration with that email, including mixed case and surrounding
+   spaces submitted directly; confirm there is only one user and a clear error.
+3. Log in with the wrong password and an unknown email; both should fail with
+   the same message. Correct credentials should redirect Home and show Logout.
+4. Log out and confirm Login/Register return. GET `/logout` must return 405.
+   Try POST without a token and confirm it cannot log an authenticated user out.
+5. Submit a registration with an extra `role=admin` field using browser developer
+   tools; the stored role must still be `student`.
+6. Promote your test account with the SQL above, then log out/in and confirm
+   the stored session role is refreshed. There is no admin-only UI yet.
+7. Confirm the homepage still shows real lost/found counts, and that unavailable
+   database errors do not expose credentials.
+
+### Phase 4 viva questions
+
+1. **Why hash passwords?** A hash allows verification without storing the original
+   password; salts prevent identical passwords from producing identical hashes.
+2. **What is a session?** It preserves login state between requests; Flask signs
+   the session cookie using SECRET_KEY to detect tampering.
+3. **Why use CSRF tokens with POST?** POST alone cannot prove a form originated
+   from the application. A token tied to the session is checked before changes.
+
+### Authentication references
+
+- [Flask authentication tutorial](https://flask.palletsprojects.com/en/stable/tutorial/views/)
+- [Werkzeug password hashing](https://werkzeug.palletsprojects.com/en/stable/utils/)
+- [Flask security considerations](https://flask.palletsprojects.com/en/stable/web-security/)
+
+### Phase 4 suggested commit message
+
+```text
+feat: add user authentication with sessions and CSRF protection
 ```
 
 ## Viva questions
