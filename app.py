@@ -594,7 +594,7 @@ def item_detail(item_type, item_id):
                     """
                 else:
                     query = """
-                        SELECT i.item_name, i.description, c.category_name,
+                        SELECT i.found_id, i.user_id, i.item_name, i.description, c.category_name,
                                i.location, i.found_date AS item_date, i.status
                         FROM found_items AS i
                         JOIN categories AS c ON c.category_id = i.category_id
@@ -610,6 +610,146 @@ def item_detail(item_type, item_id):
     if item is None:
         abort(404)
     return render_template("item_detail.html", item=item, item_type=item_type, error=None)
+
+
+def validate_claim_form(form_data):
+    try:
+        lost_id = int(form_data.get("lost_id", ""))
+        if not 1 <= lost_id <= 2147483647:
+            return "Choose a valid lost report."
+    except ValueError:
+        return "Choose a valid lost report."
+    reason = form_data.get("claim_reason", "").strip()
+    if not reason or len(reason) > 2000:
+        return "Enter a claim reason of 1 to 2000 characters."
+    return None
+
+
+@app.route("/found-items/<int:found_id>/claim", methods=["GET", "POST"])
+@login_required
+def submit_claim(found_id):
+    if session.get("role") != "student":
+        abort(403)
+    if not 1 <= found_id <= 2147483647:
+        abort(404)
+    form_data = {
+        "lost_id": request.form.get("lost_id", "").strip(),
+        "claim_reason": request.form.get("claim_reason", "").strip(),
+    }
+    found_item = None
+    lost_reports = []
+    error = None
+    response_status = 200
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                # Hold the found row during POST so eligibility cannot change mid-insert.
+                query = """
+                    SELECT found_id, item_name, user_id, status
+                    FROM found_items WHERE found_id = %s
+                """
+                if request.method == "POST":
+                    query += " FOR UPDATE"
+                cursor.execute(query, (found_id,))
+                found_item = cursor.fetchone()
+                if found_item is None:
+                    abort(404)
+                if found_item["user_id"] == session["user_id"]:
+                    abort(403)
+                if found_item["status"] != "Available":
+                    error = "This found item is no longer available for claims."
+                    response_status = 409
+                else:
+                    cursor.execute(
+                        """
+                        SELECT lost_id, item_name, lost_date
+                        FROM lost_items
+                        WHERE user_id = %s AND status = 'Lost'
+                        ORDER BY lost_date DESC, lost_id DESC
+                        """,
+                        (session["user_id"],),
+                    )
+                    lost_reports = cursor.fetchall()
+                    if request.method == "POST":
+                        error = validate_claim_form(form_data)
+                        response_status = 400 if error else 200
+                        if error is None:
+                            cursor.execute(
+                                """
+                                SELECT lost_id FROM lost_items
+                                WHERE lost_id = %s AND user_id = %s AND status = 'Lost'
+                                FOR UPDATE
+                                """,
+                                (int(form_data["lost_id"]), session["user_id"]),
+                            )
+                            if cursor.fetchone() is None:
+                                error = "Choose one of your own unresolved lost reports."
+                                response_status = 400
+                        if error is None:
+                            cursor.execute(
+                                """
+                                SELECT claim_id FROM claims
+                                WHERE lost_id = %s AND found_id = %s
+                                """,
+                                (int(form_data["lost_id"]), found_id),
+                            )
+                            if cursor.fetchone() is not None:
+                                error = "A claim already exists for this lost/found pair."
+                                response_status = 409
+                        if error is None:
+                            cursor.execute(
+                                """
+                                INSERT INTO claims
+                                    (lost_id, found_id, claimant_id, claim_reason, claim_date, status)
+                                VALUES (%s, %s, %s, %s, CURRENT_DATE, 'Pending')
+                                """,
+                                (int(form_data["lost_id"]), found_id,
+                                 session["user_id"], form_data["claim_reason"]),
+                            )
+        # The transaction must commit before the success redirect.
+        if request.method == "POST" and error is None:
+            flash("Claim submitted successfully with Pending status.")
+            return redirect(url_for("my_claims"))
+    except psycopg.errors.UniqueViolation:
+        error = "A claim already exists for this lost/found pair."
+        response_status = 409
+    except psycopg.errors.ForeignKeyViolation:
+        error = "A report or account is no longer available. Refresh and try again."
+        response_status = 409
+    except psycopg.Error:
+        error = "Claims are unavailable. Check the database connection and try again."
+        response_status = 503
+    return render_template(
+        "claim_form.html", found_item=found_item, lost_reports=lost_reports,
+        form_data=form_data, error=error, database_available=response_status != 503,
+    ), response_status
+
+
+@app.route("/my-claims")
+@login_required
+def my_claims():
+    claims = None
+    error = None
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT c.claim_id, c.lost_id, c.found_id, c.claim_reason,
+                           c.claim_date, c.status, l.item_name AS lost_item_name,
+                           f.item_name AS found_item_name
+                    FROM claims AS c
+                    JOIN lost_items AS l ON l.lost_id = c.lost_id
+                    JOIN found_items AS f ON f.found_id = c.found_id
+                    WHERE c.claimant_id = %s
+                    ORDER BY c.claim_date DESC, c.claim_id DESC
+                    """,
+                    (session["user_id"],),
+                )
+                claims = cursor.fetchall()
+    except psycopg.Error:
+        error = "Your claims are unavailable. Check the database connection and try again."
+    return render_template("my_claims.html", claims=claims, error=error), 503 if error else 200
 
 
 if __name__ == "__main__":

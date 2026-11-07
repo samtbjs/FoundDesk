@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}My Claims | FoundDesk{% endblock %}
+{% block content %}
+    <h2>My Claims</h2>
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% elif claims %}
+        <table>
+            <thead><tr><th scope="col">Claim ID</th><th scope="col">Lost item</th><th scope="col">Found item</th><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Private reason</th></tr></thead>
+            <tbody>
+                {% for claim in claims %}
+                    <tr>
+                        <td>{{ claim.claim_id }}</td>
+                        <td><a href="{{ url_for('item_detail', item_type='Lost', item_id=claim.lost_id) }}">{{ claim.lost_item_name }}</a></td>
+                        <td><a href="{{ url_for('item_detail', item_type='Found', item_id=claim.found_id) }}">{{ claim.found_item_name }}</a></td>
+                        <td>{{ claim.claim_date }}</td><td>{{ claim.status }}</td>
+                        <td class="item-description">{{ claim.claim_reason }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif claims is not none %}
+        <p>You have not submitted any claims.</p>
+    {% endif %}
+    <p><a href="{{ url_for('browse_items') }}">Browse Items</a></p>
+{% endblock %}

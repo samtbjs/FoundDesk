@@ -13,6 +13,9 @@
             <dt>Date {{ 'lost' if item_type == 'Lost' else 'found' }}</dt><dd>{{ item.item_date }}</dd>
             <dt>Status</dt><dd>{{ item.status }}</dd>
         </dl>
+        {% if item_type == 'Found' and item.status == 'Available' and session.get('role') == 'student' and item.user_id != session.get('user_id') %}
+            <p><a href="{{ url_for('submit_claim', found_id=item.found_id) }}">Claim this item</a></p>
+        {% endif %}
     {% endif %}
     <p><a href="{{ url_for('browse_items') }}">Browse Items</a></p>
 {% endblock %}

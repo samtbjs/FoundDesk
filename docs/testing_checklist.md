@@ -43,6 +43,54 @@ after installation/configuration; do not substitute SQLite or mocks.
 12. Store HTML-like names/descriptions using the report form; confirm browse and
     detail pages escape them. Check the search row and tables in a narrow window.
 
+## Phase 8: Claims (all PostgreSQL checks unverified)
+
+1. Create students A and B, an admin, A's unresolved lost report, B's unresolved
+   lost report, and an Available found report owned by B. Log in as A and open B's
+   found item. Submit a reason with A's lost report. Confirm one claim row with
+   A as claimant, the correct lost/found IDs, CURRENT_DATE and Pending status.
+   Confirm the lost/found statuses remain Lost and Available.
+2. Confirm My Claims displays the correct two item links, date, Pending status and
+   private reason. Log in as B: A's claim/reason must be absent even though B owns
+   the found report. Adding `?claimant_id=<A-id>` must not bypass session filtering.
+   Browse, item details and My Reports must not display private reasons.
+3. Inspect the dropdown: only A's Lost reports appear. POST B's lost_id, a missing
+   lost_id, and a Resolved lost_id using A's valid CSRF token: no INSERT should occur.
+4. Try claiming A's own found item via direct GET/POST: expect 403. Admin submissions
+   also give 403. Logged-out requests redirect to login (POST needs valid CSRF first).
+5. Try Returned and missing found reports: expect 409 and 404 respectively. Open
+   a claim form then change either report's eligibility in another DB session.
+   POST must recheck ownership/status and reject stale eligibility.
+6. Resubmit the same pair, including concurrent submissions: only one row may exist,
+   with a friendly duplicate error (409). Existing Pending/Approved/Rejected pairs
+   all block duplicates. Different eligible lost/found pairs remain allowed.
+7. Verify blank/whitespace reasons, >2000-character reasons, malformed/out-of-range
+   lost IDs, and missing/wrong CSRF cannot insert. SQL-looking input must stay data;
+   HTML-like reasons must render escaped in My Claims and the form after an error.
+8. In POST data supply forged claimant_id, status and claim_date. Confirm INSERT
+   still uses session user ID, Pending and CURRENT_DATE. Verify no UPDATE of item
+   statuses occurs. Test transaction rollback on DB error and success only after commit.
+9. With no unresolved lost reports, confirm the explanatory message and Report Lost
+   link. With no claims, confirm My Claims empty state. During an outage, GET/POST
+   and My Claims must return 503 without false success, empty state or credentials.
+10. Attempt deletion of either claimed report through existing routes: claims' FKs
+    and application checks must prevent it. Repeat prior report/search checks.
+11. Concurrently update/delete the selected reports while posting a claim. Confirm
+    row locks serialize eligibility checks and insertion without a stale eligible
+    claim; database errors must be handled. Admin claim review remains a later phase.
+
+Use actual IDs from the test database, then inspect in psql/pgAdmin:
+
+```sql
+SELECT c.claim_id, c.claimant_id, c.lost_id, c.found_id, c.claim_date, c.status,
+       l.user_id AS lost_owner, l.status AS lost_status,
+       f.user_id AS found_owner, f.status AS found_status
+FROM claims AS c
+JOIN lost_items AS l ON l.lost_id = c.lost_id
+JOIN found_items AS f ON f.found_id = c.found_id
+ORDER BY c.claim_id DESC;
+```
+
 ## Commands after PostgreSQL installation (PowerShell)
 
 ```powershell

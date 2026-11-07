@@ -853,6 +853,110 @@ after PostgreSQL installation during Phase 12.
 
 Suggested commit: `feat: implement item search and filtering` (do not auto-commit).
 
+## Phase 8: Claim submission
+
+Students can open an Available found item reported by someone else, choose one
+of their own unresolved lost reports and submit a private reason. Submission creates
+a Pending claim. My Claims lists only the session user's claims and reasons. Admin
+review and approval are deferred; no approval or item-status-changing routes exist.
+
+### Files and code walkthrough
+
+- `app.py`: `validate_claim_form()` checks the lost ID range and a trimmed reason
+  of 1–2000 characters. `submit_claim()` requires login and student role, loads
+  the found report, rejects its owner and unavailable items, and loads the student's
+  Lost reports. POST rechecks the selected lost report's ownership/status, checks
+  the pair for duplicates, then inserts. Both report rows are locked during POST
+  so concurrent updates cannot invalidate eligibility between checking and inserting.
+  Success is shown after commit. Duplicate/FK failures return 409; invalid selections
+  return 400, unauthorized access 403, missing found reports 404, DB outages 503.
+  `my_claims()` joins item names and restricts rows with the session claimant ID.
+- `templates/item_detail.html`: offers Claim this item only for another user's
+  Available found item viewed by a student. The found detail SELECT now includes
+  the IDs needed for this link; it never loads claim reasons.
+- `templates/base.html`: adds My Claims navigation.
+- `templates/claim_form.html`: POST form with CSRF, owned-lost-report dropdown,
+  preserved reason/selection, error messages and guidance when no Lost report exists.
+- `templates/my_claims.html`: escaped private reason, item links, date/status and
+  distinct empty/unavailable states. The query always restricts access to the claimant;
+  an admin viewing My Claims also sees only their own claims. Admin review comes later.
+- `tests/test_claims.py`: non-DB validation, login/role/CSRF checks, outage handling,
+  conditional link/form rendering, escaping and empty states.
+- `docs/testing_checklist.md`: deferred PostgreSQL claim checks, including ownership,
+  privacy, duplicates, races and unchanged item statuses.
+
+### Database operations and multi-table relationship
+
+No schema migration is needed: `claims` already has foreign keys to `lost_items`,
+`found_items` and `users`, plus `UNIQUE (lost_id, found_id)`. A claim connects one
+student to one lost report and one found report. Multiple different pairs may be
+claimed, while the same pair cannot be submitted twice, regardless of claim status.
+Foreign keys require referenced records to exist and restrict their deletion;
+the route additionally enforces ownership, student role and eligible statuses.
+
+The form sends lost_id and claim_reason through POST. Flask validates these and
+binds values through psycopg; it takes claimant_id from the login session and ignores
+submitted status/date/claimant fields. Main statements are:
+
+```sql
+SELECT found_id, item_name, user_id, status
+FROM found_items WHERE found_id = %s FOR UPDATE;
+
+SELECT lost_id, item_name, lost_date FROM lost_items
+WHERE user_id = %s AND status = 'Lost'
+ORDER BY lost_date DESC, lost_id DESC;
+
+SELECT lost_id FROM lost_items
+WHERE lost_id = %s AND user_id = %s AND status = 'Lost' FOR UPDATE;
+
+SELECT claim_id FROM claims WHERE lost_id = %s AND found_id = %s;
+
+INSERT INTO claims
+    (lost_id, found_id, claimant_id, claim_reason, claim_date, status)
+VALUES (%s, %s, %s, %s, CURRENT_DATE, 'Pending');
+
+SELECT c.claim_id, c.lost_id, c.found_id, c.claim_reason,
+       c.claim_date, c.status, l.item_name AS lost_item_name,
+       f.item_name AS found_item_name
+FROM claims AS c
+JOIN lost_items AS l ON l.lost_id = c.lost_id
+JOIN found_items AS f ON f.found_id = c.found_id
+WHERE c.claimant_id = %s
+ORDER BY c.claim_date DESC, c.claim_id DESC;
+```
+
+GET loads the found row without FOR UPDATE. POST locks found then lost rows until
+commit/rollback. The duplicate SELECT gives a readable error and UNIQUE remains the
+database safeguard. No UPDATE statements or automatic approval are introduced.
+
+### Run and test (PowerShell)
+
+With dependencies installed and `.env` configured as described earlier:
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q app.py db.py tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m flask --app app run
+```
+
+Open `http://127.0.0.1:5000/browse-items`, log in as a student, open another student's
+Available found item, and follow Claim this item. View submissions at
+`http://127.0.0.1:5000/my-claims`. Successful submission and SQL execution remain
+unverified until PostgreSQL is installed. Follow the Phase 8 steps in
+`docs/testing_checklist.md` during Phase 12; automated checks use no DB substitutes.
+Phase 8 verification: Python compilation and all 29 unittest checks passed.
+
+### Phase 8 viva questions
+
+1. **Why does a claim reference three tables?** It connects the claimant's account,
+   their lost report and a found report without duplicating those records.
+2. **How are duplicate claims prevented?** The route checks the pair; the database
+   UNIQUE constraint also prevents concurrent or repeated duplicate inserts.
+3. **Why recheck eligibility on POST?** Form choices can be forged or become stale;
+   server checks and row locks protect ownership and status at insertion time.
+
+Suggested commit: `feat: implement lost item ownership claims` (do not auto-commit).
+
 ## Viva questions
 
 1. **What does a Flask route do?** It maps a URL to a Python function that returns

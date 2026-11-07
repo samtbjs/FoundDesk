@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Submit Claim | FoundDesk{% endblock %}
+{% block content %}
+    <h2>Submit Claim</h2>
+    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+    {% if found_item %}
+        <p>Found item: <a href="{{ url_for('item_detail', item_type='Found', item_id=found_item.found_id) }}">{{ found_item.item_name }}</a></p>
+        {% if database_available and found_item.status == 'Available' %}
+            {% if lost_reports %}
+                <form method="post" action="{{ url_for('submit_claim', found_id=found_item.found_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <p><label for="lost_id">Your unresolved lost report</label><br>
+                        <select id="lost_id" name="lost_id" required>
+                            <option value="">Choose your lost report</option>
+                            {% for report in lost_reports %}
+                                <option value="{{ report.lost_id }}" {% if form_data.lost_id|int == report.lost_id %}selected{% endif %}>#{{ report.lost_id }} — {{ report.item_name }} ({{ report.lost_date }})</option>
+                            {% endfor %}
+                        </select>
+                    </p>
+                    <p><label for="claim_reason">Claim reason (private)</label><br>
+                        <textarea id="claim_reason" name="claim_reason" rows="5" cols="40" maxlength="2000" required>{{ form_data.claim_reason }}</textarea>
+                    </p>
+                    <p>Explain why this is your item. Your reason is private to you and administrators. Submission creates a Pending claim.</p>
+                    <button type="submit">Submit claim</button>
+                </form>
+            {% else %}
+                <p>You need an unresolved lost report before submitting a claim.</p>
+                <p><a href="{{ url_for('report_lost') }}">Report a lost item</a></p>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    <p><a href="{{ url_for('my_claims') }}">My Claims</a> | <a href="{{ url_for('browse_items') }}">Browse Items</a></p>
+{% endblock %}

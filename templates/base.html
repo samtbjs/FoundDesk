@@ -16,6 +16,7 @@
             <a href="{{ url_for('report_found') }}">Report Found</a> |
             <a href="{{ url_for('browse_items') }}">Browse Items</a> |
             <a href="{{ url_for('my_reports') }}">My Reports</a> |
+            <a href="{{ url_for('my_claims') }}">My Claims</a> |
             {% if session.get('user_id') %}
                 <form class="logout-form" action="{{ url_for('logout') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
