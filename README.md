@@ -18,7 +18,9 @@ FoundDesk/
 │   ├── base.html
 │   ├── index.html
 │   ├── register.html
-│   └── login.html
+│   ├── login.html
+│   ├── lost_item_form.html
+│   └── my_reports.html
 ├── static/
 │   └── css/
 │       └── style.css
@@ -31,7 +33,8 @@ FoundDesk/
 │   └── database_design.md
 ├── requirements.txt
 ├── tests/
-│   └── test_auth.py
+│   ├── test_auth.py
+│   └── test_lost_items.py
 ├── .env                 # Local only; excluded from Git
 ├── .env.example
 ├── .gitignore
@@ -447,6 +450,170 @@ schema setup (and during the full integration testing after Phase 11), check:
 
 ```text
 feat: add user authentication with sessions and CSRF protection
+```
+
+## Phase 5: Lost item management
+
+### Files and routes
+
+`app.py` adds lost-report validation and four route patterns. All require login,
+and POST requests also pass the existing session-based CSRF check. No new
+dependencies or schema changes are required. Found-item and claim features
+are not implemented; the existing claims table is read only to protect deletion.
+
+| Route | Methods | Purpose and SQL operations |
+| --- | --- | --- |
+| `/report-lost` | GET, POST | SELECT categories for the dropdown. Validate POST data and INSERT a report using the session user ID and fixed `Lost` status. |
+| `/my-reports` | GET | SELECT only the session user's lost reports, JOIN categories for names, and use EXISTS to indicate whether a claim references each report. |
+| `/lost-items/<lost_id>/edit` | GET, POST | SELECT the user's unresolved report to fill the form, then UPDATE its five editable fields. Both queries require matching report ID, session user ID and `Lost` status. |
+| `/lost-items/<lost_id>/delete` | POST | DELETE only a report owned by the session user with no referencing claim. RETURNING identifies whether a row was deleted. |
+
+`report_lost()` handles both the creation and edit URLs to reuse their fields,
+validation and category lookup. `lost_id=None` means creation; a supplied report
+ID means editing. The form never asks for a user ID or status: those values are
+controlled by the server. Administrators also follow the ownership checks here.
+There is no route to change report status in this phase.
+
+`templates/lost_item_form.html` extends the base layout and contains Item Name,
+Category, Description, Location Lost and Date Lost. Categories come exclusively
+from PostgreSQL. Posted values remain in the form after a validation error.
+The submit button is disabled if the database cannot be loaded or there are no
+categories; an empty category table produces an instruction to run the seed script.
+
+`templates/my_reports.html` displays reports in a plain table, newest loss date
+first. Edit links appear only for `Lost` rows; Delete is a separate POST form
+with a hidden CSRF token and appears only for rows without claims. The server
+enforces these restrictions even if someone submits a manually constructed URL
+or form. Jinja2 escapes user-entered content when rendering it.
+
+`templates/base.html` now links Report Lost and My Reports. Report Found and Browse
+Items remain labels. `static/css/style.css` adds only table borders and cell spacing.
+`tests/test_lost_items.py` adds checks that do not require PostgreSQL.
+
+### Validation and SQL details
+
+All five fields are required. The route strips surrounding whitespace and the
+validator checks item names up to 150 characters, locations up to 200 characters,
+a positive PostgreSQL INTEGER category ID, and a real YYYY-MM-DD date no later
+than today. The selected ID must also be in the categories retrieved from the
+database. The browser's required fields and maximum date assist users; Python
+validates submissions again.
+
+The INSERT uses separate psycopg parameters and never trusts a submitted user ID:
+
+```sql
+INSERT INTO lost_items
+    (category_id, item_name, description, location, lost_date, user_id, status)
+VALUES (%s, %s, %s, %s, %s, %s, 'Lost');
+```
+
+The edit SELECT and UPDATE both include `lost_id = %s AND user_id = %s AND
+status = 'Lost'`. The UPDATE checks these conditions again in case the report
+changed after it was selected. It does not change ownership or status.
+
+```sql
+UPDATE lost_items
+SET category_id = %s, item_name = %s, description = %s,
+    location = %s, lost_date = %s
+WHERE lost_id = %s AND user_id = %s AND status = 'Lost'
+RETURNING lost_id;
+```
+
+Deletion combines ownership and claim checks in one statement:
+
+```sql
+DELETE FROM lost_items
+WHERE lost_id = %s AND user_id = %s
+  AND NOT EXISTS (
+      SELECT 1 FROM claims WHERE claims.lost_id = lost_items.lost_id
+  )
+RETURNING lost_id;
+```
+
+Any referencing claim blocks deletion, regardless of claim status. A resolved
+report may be deleted if it belongs to the user and has no claims; only editing
+requires unresolved status. The schema's ON DELETE RESTRICT foreign key is an
+additional safeguard, including a claim inserted concurrently. A foreign-key
+violation is caught and reported without exposing internal errors. No claims
+are deleted automatically.
+
+Successful writes commit when the connection context exits; exceptions roll
+them back. Success messages appear only after that exit. The routes redirect to
+My Reports after a successful POST, reducing accidental resubmission on refresh.
+A database failure shows an availability message rather than claiming there are
+no reports or that a write succeeded.
+
+### Run and test Phase 5
+
+From the FoundDesk directory on macOS/Linux:
+
+```sh
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m compileall -q app.py db.py tests
+python -m unittest discover -s tests -v
+python -m flask --app app run
+```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead.
+Open http://127.0.0.1:5000/report-lost or http://127.0.0.1:5000/my-reports.
+Anonymous visitors should be redirected to Login. With PostgreSQL unavailable,
+real registration/login cannot complete; database integration remains in place.
+
+The automated checks cover validation, dates, authentication redirects, CSRF
+rejection, unavailable database configuration, table action visibility and HTML
+escaping. They use test sessions and direct template input for those checks,
+without a mock or alternative database.
+
+**PostgreSQL-dependent operations remain unverified.** After installing PostgreSQL
+and initializing it using the earlier instructions, test the following (including
+during the full integration testing after Phase 11):
+
+1. Register and log in as student A. Confirm the category dropdown shows the
+   six seeded names. Submit a lost item and confirm it appears in My Reports.
+2. In pgAdmin run the query below and confirm ownership, category, date and
+   `Lost` status. Try submitting extra user_id/status fields from browser tools;
+   the server must still use student A's ID and `Lost` status.
+3. Edit the report and confirm the values persist and the homepage count does
+   not increase. Missing/whitespace-only fields, unknown categories, invalid
+   dates and future dates must be rejected. Use developer tools to bypass HTML
+   validation when testing server validation.
+4. Register student B. Their table must not show A's report. While logged in as
+   B, try A's edit URL and submit edit/delete forms targeting A's report with B's
+   valid session CSRF token. A's row must stay unchanged.
+5. Set a test report's status to `Resolved` manually in pgAdmin. Confirm Edit
+   disappears and a direct edit request cannot change it. Deletion remains
+   allowed if there are no claims.
+6. Delete a report without claims and confirm it disappears and the homepage
+   lost count decreases. Refresh My Reports and confirm no duplicate action.
+7. Verify deletion is blocked for a report with a referencing claim, including
+   approved/rejected claims. Because this phase adds no claim or found-item
+   workflow, defer creating that fixture through the UI until those phases.
+   Confirm the database foreign key also rejects direct deletion of that report.
+8. Repeat requests with missing/wrong CSRF tokens and confirm no write happens.
+   Confirm database outages produce useful errors without leaking credentials.
+
+```sql
+SELECT l.lost_id, l.user_id, l.item_name, c.category_name,
+       l.description, l.location, l.lost_date, l.status
+FROM lost_items AS l
+JOIN categories AS c ON c.category_id = l.category_id
+ORDER BY l.lost_id;
+```
+
+### Phase 5 viva questions
+
+1. **Why use the session user ID?** It identifies the authenticated user without
+   trusting an editable form field for ownership.
+2. **How is unauthorized editing prevented?** Both the SELECT and UPDATE filter
+   by report ID, owner ID and unresolved status.
+3. **Why check claims before deletion?** Deleting a referenced report would break
+   the claim's relationship. NOT EXISTS and the foreign key protect it.
+
+### Phase 5 suggested commit message
+
+```text
+feat: add lost item reporting and owner-managed reports
 ```
 
 ## Viva questions

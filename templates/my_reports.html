@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}My Reports | FoundDesk{% endblock %}
+
+{% block content %}
+    <h2>My Lost-Item Reports</h2>
+    <p><a href="{{ url_for('report_lost') }}">Report a lost item</a></p>
+    {% if reports is none %}
+        <p>Reports are currently unavailable. Please try again later.</p>
+    {% elif not reports %}
+        <p>You have not reported any lost items.</p>
+    {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Item Name</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Location Lost</th>
+                    <th scope="col">Date Lost</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                    <tr>
+                        <td>{{ report.item_name }}</td>
+                        <td>{{ report.category_name }}</td>
+                        <td>{{ report.description }}</td>
+                        <td>{{ report.location }}</td>
+                        <td>{{ report.lost_date }}</td>
+                        <td>{{ report.status }}</td>
+                        <td>
+                            {% if report.status == 'Lost' %}
+                                <a href="{{ url_for('report_lost', lost_id=report.lost_id) }}">Edit</a>
+                            {% endif %}
+                            {% if not report.has_claims %}
+                                <form method="post" action="{{ url_for('delete_lost_item', lost_id=report.lost_id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            {% else %}
+                                <span>Deletion blocked by a claim.</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}

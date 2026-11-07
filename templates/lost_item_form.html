@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Lost Report' if lost_id is not none else 'Report Lost Item' }} | FoundDesk{% endblock %}
+
+{% block content %}
+    <h2>{{ 'Edit Lost Report' if lost_id is not none else 'Report Lost Item' }}</h2>
+    <form method="post" action="{{ url_for('report_lost', lost_id=lost_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p>
+            <label for="item_name">Item Name</label><br>
+            <input id="item_name" name="item_name" maxlength="150"
+                   value="{{ form_data.get('item_name', '') }}" required>
+        </p>
+        <p>
+            <label for="category_id">Category</label><br>
+            <select id="category_id" name="category_id" required>
+                <option value="">Choose a category</option>
+                {% for category in categories %}
+                    <option value="{{ category.category_id }}"
+                        {% if category.category_id|string == form_data.get('category_id', '')|string %}selected{% endif %}>
+                        {{ category.category_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            <label for="description">Description</label><br>
+            <textarea id="description" name="description" rows="4" cols="40" required>{{ form_data.get('description', '') }}</textarea>
+        </p>
+        <p>
+            <label for="location">Location Lost</label><br>
+            <input id="location" name="location" maxlength="200"
+                   value="{{ form_data.get('location', '') }}" required>
+        </p>
+        <p>
+            <label for="lost_date">Date Lost</label><br>
+            <input id="lost_date" name="lost_date" type="date" max="{{ today }}"
+                   value="{{ form_data.get('lost_date', '') }}" required>
+        </p>
+        <button type="submit" {% if not database_available or not categories %}disabled{% endif %}>
+            {{ 'Save Changes' if lost_id is not none else 'Submit Report' }}
+        </button>
+    </form>
+    <p><a href="{{ url_for('my_reports') }}">Back to My Reports</a></p>
+{% endblock %}
