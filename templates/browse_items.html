@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Browse Items | FoundDesk{% endblock %}
+{% block content %}
+    <h2>Browse Items</h2>
+    <form class="search-row" action="{{ url_for('browse_items') }}" method="get">
+        <label>Keyword / item name
+            <input name="keyword" maxlength="150" value="{{ filters.keyword }}">
+        </label>
+        <label>Category
+            <select name="category_id">
+                <option value="">All categories</option>
+                {% for category in categories %}
+                    <option value="{{ category.category_id }}" {% if filters.category_id|int == category.category_id %}selected{% endif %}>{{ category.category_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Location
+            <input name="location" maxlength="200" value="{{ filters.location }}">
+        </label>
+        <label>Type
+            <select name="type">
+                {% for item_type in ('All', 'Lost', 'Found') %}
+                    <option value="{{ item_type }}" {% if filters.type == item_type %}selected{% endif %}>{{ item_type }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit">Search</button>
+        <a href="{{ url_for('browse_items') }}">Clear filters</a>
+    </form>
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% elif items %}
+        <p>{{ items|length }} result(s), newest lost/found date first.</p>
+        <table>
+            <thead><tr><th scope="col">Item name</th><th scope="col">Category</th><th scope="col">Location</th><th scope="col">Type</th><th scope="col">Date</th><th scope="col">Status</th></tr></thead>
+            <tbody>
+                {% for item in items %}
+                    <tr>
+                        <td><a href="{{ url_for('item_detail', item_type=item.item_type, item_id=item.item_id) }}">{{ item.item_name }}</a></td>
+                        <td>{{ item.category_name }}</td><td>{{ item.location }}</td>
+                        <td>{{ item.item_type }}</td><td>{{ item.item_date }}</td><td>{{ item.status }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif items is not none %}
+        <p>No items match your search. Try changing or clearing the filters.</p>
+    {% endif %}
+{% endblock %}

@@ -28,3 +28,20 @@ th, td {
     text-align: left;
     vertical-align: top;
 }
+
+.search-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.search-row label {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-description {
+    white-space: pre-wrap;
+}

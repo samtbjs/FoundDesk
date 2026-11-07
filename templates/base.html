@@ -14,7 +14,7 @@
             <a href="{{ url_for('index') }}">Home</a> |
             <a href="{{ url_for('report_lost') }}">Report Lost</a> |
             <a href="{{ url_for('report_found') }}">Report Found</a> |
-            <span>Browse Items</span> |
+            <a href="{{ url_for('browse_items') }}">Browse Items</a> |
             <a href="{{ url_for('my_reports') }}">My Reports</a> |
             {% if session.get('user_id') %}
                 <form class="logout-form" action="{{ url_for('logout') }}" method="post">

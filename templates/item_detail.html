@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Item Details | FoundDesk{% endblock %}
+{% block content %}
+    <h2>{{ item_type }} Item Details</h2>
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% else %}
+        <dl>
+            <dt>Item name</dt><dd>{{ item.item_name }}</dd>
+            <dt>Description</dt><dd class="item-description">{{ item.description }}</dd>
+            <dt>Category</dt><dd>{{ item.category_name }}</dd>
+            <dt>Location</dt><dd>{{ item.location }}</dd>
+            <dt>Date {{ 'lost' if item_type == 'Lost' else 'found' }}</dt><dd>{{ item.item_date }}</dd>
+            <dt>Status</dt><dd>{{ item.status }}</dd>
+        </dl>
+    {% endif %}
+    <p><a href="{{ url_for('browse_items') }}">Browse Items</a></p>
+{% endblock %}

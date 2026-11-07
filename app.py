@@ -5,7 +5,7 @@ from functools import wraps
 from datetime import date
 
 import psycopg
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import get_connection
@@ -483,6 +483,133 @@ def delete_found_item(found_id):
     except psycopg.Error:
         flash("Report could not be deleted. Check the database connection and try again.")
     return redirect(url_for("my_reports"))
+
+
+@app.route("/browse-items")
+@login_required
+def browse_items():
+    filters = {
+        name: request.args.get(name, "").strip()
+        for name in ("keyword", "category_id", "location")
+    }
+    filters["type"] = request.args.get("type", "All").strip()
+    categories = []
+    items = None
+    error = None
+    category_id = None
+    if filters["type"] not in ("All", "Lost", "Found"):
+        error = "Choose All, Lost, or Found as the item type."
+    elif len(filters["keyword"]) > 150 or len(filters["location"]) > 200:
+        error = "Use at most 150 characters for keyword and 200 for location."
+    elif filters["category_id"]:
+        try:
+            category_id = int(filters["category_id"])
+            if not 1 <= category_id <= 2147483647:
+                error = "Choose a valid category."
+        except ValueError:
+            error = "Choose a valid category."
+    if error:
+        return render_template(
+            "browse_items.html", filters=filters, categories=categories,
+            items=items, error=error,
+        ), 400
+
+    # Only fixed SQL fragments are joined; every user value is bound separately.
+    conditions = []
+    values = []
+    if filters["keyword"]:
+        conditions.append("i.item_name ILIKE %s")
+        values.append("%" + filters["keyword"] + "%")
+    if category_id is not None:
+        conditions.append("i.category_id = %s")
+        values.append(category_id)
+    if filters["location"]:
+        conditions.append("i.location ILIKE %s")
+        values.append("%" + filters["location"] + "%")
+    where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT category_id, category_name FROM categories ORDER BY category_name")
+                categories = cursor.fetchall()
+                if category_id is not None and category_id not in {
+                    category["category_id"] for category in categories
+                }:
+                    return render_template(
+                        "browse_items.html", filters=filters, categories=categories,
+                        items=None, error="Choose a category from the list.",
+                    ), 400
+                items = []
+                if filters["type"] in ("All", "Lost"):
+                    cursor.execute(
+                        """
+                        SELECT i.lost_id AS item_id, i.item_name, c.category_name,
+                               i.location, i.lost_date AS item_date, i.status,
+                               'Lost' AS item_type
+                        FROM lost_items AS i
+                        JOIN categories AS c ON c.category_id = i.category_id
+                        """ + where_clause + " ORDER BY i.lost_date DESC, i.lost_id DESC",
+                        values,
+                    )
+                    items.extend(cursor.fetchall())
+                if filters["type"] in ("All", "Found"):
+                    cursor.execute(
+                        """
+                        SELECT i.found_id AS item_id, i.item_name, c.category_name,
+                               i.location, i.found_date AS item_date, i.status,
+                               'Found' AS item_type
+                        FROM found_items AS i
+                        JOIN categories AS c ON c.category_id = i.category_id
+                        """ + where_clause + " ORDER BY i.found_date DESC, i.found_id DESC",
+                        values,
+                    )
+                    items.extend(cursor.fetchall())
+                # Merge the two result lists by event date, newest first.
+                items.sort(key=lambda item: (item["item_date"], item["item_id"], item["item_type"]), reverse=True)
+    except psycopg.Error:
+        items = None
+        error = "Items are unavailable. Check the database connection and schema, then try again."
+    return render_template(
+        "browse_items.html", filters=filters, categories=categories,
+        items=items, error=error,
+    ), 503 if error else 200
+
+
+@app.route("/items/<item_type>/<int:item_id>")
+@login_required
+def item_detail(item_type, item_id):
+    if item_type not in ("Lost", "Found") or not 1 <= item_id <= 2147483647:
+        abort(404)
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                if item_type == "Lost":
+                    query = """
+                        SELECT i.item_name, i.description, c.category_name,
+                               i.location, i.lost_date AS item_date, i.status
+                        FROM lost_items AS i
+                        JOIN categories AS c ON c.category_id = i.category_id
+                        WHERE i.lost_id = %s
+                    """
+                else:
+                    query = """
+                        SELECT i.item_name, i.description, c.category_name,
+                               i.location, i.found_date AS item_date, i.status
+                        FROM found_items AS i
+                        JOIN categories AS c ON c.category_id = i.category_id
+                        WHERE i.found_id = %s
+                    """
+                cursor.execute(query, (item_id,))
+                item = cursor.fetchone()
+    except psycopg.Error:
+        return render_template(
+            "item_detail.html", item=None, item_type=item_type,
+            error="Item details are unavailable. Check the database connection and try again.",
+        ), 503
+    if item is None:
+        abort(404)
+    return render_template("item_detail.html", item=item, item_type=item_type, error=None)
 
 
 if __name__ == "__main__":

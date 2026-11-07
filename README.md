@@ -777,6 +777,82 @@ ORDER BY f.found_id;
 feat: add found item reporting and management
 ```
 
+## Phase 7: Search and filtering
+
+Browse Items now links to `/browse-items`. Browsing and `/items/<item_type>/<item_id>`
+details require login, like the report pages. Any logged-in student can read reports
+from either type; these pages expose no reporter account data or modification forms.
+No schema changes, writes, matching libraries or claim workflow were added.
+
+### Files and code walkthrough
+
+- `app.py`: `browse_items()` reads and trims GET values, validates type/length/category
+  range, loads categories and checks category membership. It builds a WHERE clause
+  using fixed conditions and binds user values separately. Lost and found SELECTs
+  run only for the chosen type. The combined list is sorted by event date, ID and
+  type descending. `item_detail()` selects one report from a fixed type-specific
+  query by bound ID. Missing reports give 404, invalid filters give 400, outages 503.
+- `templates/base.html`: enables the Browse Items navigation link.
+- `templates/browse_items.html`: GET search row with preserved values, readable
+  results table, type-specific detail links, clear link and empty-results message.
+- `templates/item_detail.html`: displays the six required fields with Jinja escaping.
+- `static/css/style.css`: minimal wrapping search row and multiline descriptions.
+- `tests/test_search.py`: login, input validation, unavailable-database responses,
+  template escaping, links, selections and empty-results checks without DB substitutes.
+- `docs/testing_checklist.md`: tracks unverified PostgreSQL checks for Phase 12.
+
+### GET values to SQL to HTML
+
+For example, `/browse-items?keyword=keys&category_id=2&location=library&type=Found`
+becomes `request.args` in Flask. Category 2 must exist. The found query is:
+
+```sql
+SELECT i.found_id AS item_id, i.item_name, c.category_name,
+       i.location, i.found_date AS item_date, i.status, 'Found' AS item_type
+FROM found_items AS i
+JOIN categories AS c ON c.category_id = i.category_id
+WHERE i.item_name ILIKE %s AND i.category_id = %s AND i.location ILIKE %s
+ORDER BY i.found_date DESC, i.found_id DESC;
+```
+
+The separate bound values are `('%keys%', 2, '%library%')`. Unselected filters
+omit their fixed condition. All filters combine with AND; keyword matches item
+name only. `%` and `_` keep SQL wildcard semantics. Lost searches use the analogous
+fixed query over `lost_items` and `lost_date`. All runs both SELECTs and merges their
+rows in Python. JOIN retrieves category names without duplicating category data.
+Details use `WHERE i.lost_id = %s` or `WHERE i.found_id = %s`. Categories use
+`SELECT category_id, category_name FROM categories ORDER BY category_name`.
+All Phase 7 DB operations are SELECTs. Jinja receives dictionaries and renders
+escaped values into the form, table and detail page.
+
+### Run and test (Windows PowerShell)
+
+From the project root, with `.env` configured using `.env.example`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m compileall -q app.py db.py tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m flask --app app run
+```
+
+Open `http://127.0.0.1:5000/browse-items`, log in, search and open a result.
+The automated tests do not verify SQL execution or successful database reads.
+Phase 7 verification: Python compilation and all 23 unittest checks passed.
+PostgreSQL integration remains unverified; follow `docs/testing_checklist.md`
+after PostgreSQL installation during Phase 12.
+
+### Phase 7 viva questions
+
+1. **Why GET for search?** It reads data without changing it and keeps filters
+   in the URL so searches can be bookmarked.
+2. **Why ILIKE and bound parameters?** ILIKE supports case-insensitive pattern
+   matching; parameters keep input separate from SQL syntax.
+3. **Why JOIN categories?** Reports store category foreign keys; JOIN retrieves
+   readable names from the shared category table.
+
+Suggested commit: `feat: implement item search and filtering` (do not auto-commit).
+
 ## Viva questions
 
 1. **What does a Flask route do?** It maps a URL to a Python function that returns
