@@ -11,7 +11,7 @@ My Reports and Login are non-clickable labels for future phases.
 ## Project structure
 
 ```text
-lostandFound/
+FoundDesk/
 ├── app.py
 ├── templates/
 │   ├── base.html
@@ -20,9 +20,12 @@ lostandFound/
 │   └── css/
 │       └── style.css
 ├── database/
-│   └── .gitkeep
+│   ├── .gitkeep
+│   ├── schema.sql
+│   └── sample_data.sql
 ├── docs/
-│   └── .gitkeep
+│   ├── .gitkeep
+│   └── database_design.md
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
@@ -36,8 +39,9 @@ lostandFound/
 - `templates/index.html` extends `base.html` and supplies the homepage content.
 - `static/css/style.css` sets a white background, black text, basic spacing and
   a readable font. Flask serves this file from its built-in static route.
-- `database/` is reserved for database files in later phases.
-- `docs/` is reserved for project documentation. The empty `.gitkeep` files allow
+- `database/` contains the Phase 2 PostgreSQL schema and initial category data.
+- `docs/database_design.md` explains the tables, relationships, normalization,
+  Mermaid ER diagram, pgAdmin setup and verification queries. The empty `.gitkeep` files allow
   Git to track both otherwise empty folders; they have no application behavior.
 - `requirements.txt` lists Flask, psycopg's binary distribution and python-dotenv.
   Flask handles requests and templates. psycopg will connect to PostgreSQL in a
@@ -50,7 +54,7 @@ lostandFound/
 
 ## Setup and run
 
-Install Python 3 first. Open a terminal in this `lostandFound` directory.
+Install Python 3 first. Open a terminal in this `FoundDesk` directory.
 
 On macOS or Linux:
 
@@ -97,6 +101,25 @@ Both should return `200 OK`.
 No database operations take place in Phase 1. There are no connections, tables,
 SQL queries or stored user details. PostgreSQL does not need to be installed or
 running yet. psycopg is listed only as a required project dependency.
+
+## Phase 2: Database design and schema
+
+The database design now includes `users`, `categories`, `lost_items`,
+`found_items` and `claims`. Identity primary keys, foreign keys, required columns,
+unique constraints and role/status checks maintain relational integrity.
+Duplicate claims for the same lost/found pair are rejected. Restricted deletes
+protect referenced records from automatic removal.
+
+To install the database separately from Flask, create a PostgreSQL database named
+`founddesk` in pgAdmin. Select it, open **Tools > Query Tool**, and run
+`database/schema.sql` once in the empty database. Then run
+`database/sample_data.sql` to insert the six categories. Use **Open File** and
+**Execute script** for each complete script. The seed script can be rerun safely.
+
+See [Database design](docs/database_design.md) for full instructions, SQL
+verification queries, an ER diagram, attribute descriptions and Phase 2 viva
+questions. No sample users or passwords are included. Flask still only renders
+the Phase 1 homepage and does not connect to PostgreSQL.
 
 ## Viva questions
 
