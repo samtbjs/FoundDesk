@@ -20,6 +20,7 @@ FoundDesk/
 │   ├── register.html
 │   ├── login.html
 │   ├── lost_item_form.html
+│   ├── found_item_form.html
 │   └── my_reports.html
 ├── static/
 │   └── css/
@@ -34,6 +35,7 @@ FoundDesk/
 ├── requirements.txt
 ├── tests/
 │   ├── test_auth.py
+│   ├── test_found_items.py
 │   └── test_lost_items.py
 ├── .env                 # Local only; excluded from Git
 ├── .env.example
@@ -614,6 +616,165 @@ ORDER BY l.lost_id;
 
 ```text
 feat: add lost item reporting and owner-managed reports
+```
+
+## Phase 6: Found item management
+
+### Changes and routes
+
+Found-item reporting follows the lost-item module's simple forms, sessions,
+CSRF protection, flash messages and connection context managers. No schema or
+dependency changes are needed. The claim approval workflow is not implemented.
+
+| Route | Methods | Behavior |
+| --- | --- | --- |
+| `/report-found` | GET, POST | Loads categories from PostgreSQL; validates and inserts a found report. |
+| `/found-items/<found_id>/edit` | GET, POST | Loads and updates only the logged-in user's `Available` report. |
+| `/found-items/<found_id>/delete` | POST | Deletes only the logged-in user's report when no claim references it. |
+| `/my-reports` | GET | Now loads both lost and found reports, filtered by the session user ID, into separate tables. |
+
+`app.py` adds `report_found()` and `delete_found_item()`, extends `my_reports()`,
+and shares `validate_item_report(form_data, date_field)` between lost and found
+reporting. The date field argument selects `lost_date` or `found_date`; the
+remaining field checks are identical. Routes strip surrounding whitespace,
+require all fields, enforce item/location lengths, reject invalid/future dates,
+and verify the category against the database's category list.
+
+`templates/found_item_form.html` extends `base.html` and reuses the existing
+styling. Its five fields are Item Name, Category, Description, Location Found
+and Date Found. The same form handles creation and editing, retains posted
+values on errors, and includes a hidden CSRF token. The category list is never
+hardcoded. The submit button is disabled when categories/database are unavailable.
+
+`templates/base.html` activates Report Found. `templates/my_reports.html` adds
+the found table with edit links for Available rows and CSRF-protected delete
+forms for rows without claims. `tests/test_found_items.py` adds checks without
+a database. Existing lost tests were updated to call the shared validator.
+
+### Database operations
+
+Creation uses this parameterized statement. The session supplies user_id and SQL
+fixes the initial status, so submitted ownership/status fields cannot override them:
+
+```sql
+INSERT INTO found_items
+    (category_id, item_name, description, location, found_date, user_id, status)
+VALUES (%s, %s, %s, %s, %s, %s, 'Available');
+```
+
+The edit SELECT requires `found_id = %s AND user_id = %s AND status = 'Available'`.
+The UPDATE checks the same conditions again and modifies only the five form fields:
+
+```sql
+UPDATE found_items
+SET category_id = %s, item_name = %s, description = %s,
+    location = %s, found_date = %s
+WHERE found_id = %s AND user_id = %s AND status = 'Available'
+RETURNING found_id;
+```
+
+My Reports SELECTs only the logged-in user's found rows, JOINs categories for
+names, and uses EXISTS against claims to determine delete-button visibility.
+These are separate queries from lost reports so the two sets do not multiply
+each other through a JOIN.
+
+```sql
+DELETE FROM found_items
+WHERE found_id = %s AND user_id = %s
+  AND NOT EXISTS (
+      SELECT 1 FROM claims WHERE claims.found_id = found_items.found_id
+  )
+RETURNING found_id;
+```
+
+Any claim status blocks deletion. The existing ON DELETE RESTRICT foreign key
+also protects concurrent claim insertion; a foreign-key error produces a clear
+message and rollback. A Returned report cannot be edited, but it may be deleted
+by its owner if it has no claims. Admin users follow the same ownership rules.
+No report status-changing route is added. Success messages follow the committed
+write, and database errors never display credentials or fake successful results.
+
+### Lost and found table comparison
+
+Both tables have identity primary keys, required report fields, user/category
+foreign keys, and constrained statuses. Both describe one report per row,
+reference shared account/category information and are referenced by claims.
+
+| Detail | lost_items | found_items |
+| --- | --- | --- |
+| Primary key | lost_id | found_id |
+| Reporter | Person reporting the loss | Person reporting the discovery |
+| Event date | lost_date | found_date |
+| Location meaning | Where it was lost/last seen | Where it was found |
+| Initial/editable status | Lost | Available |
+| Other status | Resolved | Returned |
+| Claim foreign key | claims.lost_id | claims.found_id |
+
+They represent independent events: a found report can exist without a matching
+lost report and vice versa. A future claim can link the two without duplicating
+either report's details.
+
+### Run, tests and deferred PostgreSQL verification
+
+From the FoundDesk folder on macOS/Linux:
+
+```sh
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m compileall -q app.py db.py tests
+python -m unittest discover -s tests -v
+python -m flask --app app run
+```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead.
+Open http://127.0.0.1:5000/report-found or http://127.0.0.1:5000/my-reports.
+The automated tests cover shared/found date validation, login protection, CSRF,
+database-unavailable handling, form rendering, action visibility and escaping.
+Test sessions and template fixtures do not verify database authentication or SQL.
+
+**Successful PostgreSQL operations remain unverified.** After PostgreSQL setup,
+and as part of complete testing after Phase 11:
+
+1. Log in as student A, submit a found item, and verify it appears alongside
+   their lost reports in My Reports. Confirm the homepage found count increases.
+2. Run the SELECT below in pgAdmin. Confirm A's user ID, the selected category,
+   found date and Available status. Manually submit extra user_id/status fields
+   and confirm they are ignored by the INSERT.
+3. Edit the report and verify all five fields persist. Test empty/whitespace
+   fields, oversized names/locations, unknown categories and invalid/future dates
+   while bypassing browser validation to exercise Python checks.
+4. Log in as B. A's report must be absent from B's table. Direct edit and delete
+   requests using A's report ID with B's valid CSRF token must leave it unchanged.
+5. Set a test report to Returned in pgAdmin. Direct edit GET/POST requests must
+   fail even if an old form was open. Deletion is allowed only if no claims exist.
+6. Delete an unclaimed report and verify the row and homepage count update.
+   When the claim phase exists, verify any referencing claim blocks deletion
+   regardless of its status; do not add a claim workflow early for this test.
+7. Repeat lost-item reporting/edit/delete checks to confirm existing behavior.
+   Confirm missing/invalid CSRF tokens cannot write data and outages do not
+   expose credentials or claim successful changes.
+
+```sql
+SELECT f.found_id, f.user_id, f.item_name, c.category_name,
+       f.description, f.location, f.found_date, f.status
+FROM found_items AS f
+JOIN categories AS c ON c.category_id = f.category_id
+ORDER BY f.found_id;
+```
+
+### Phase 6 viva questions
+
+1. **Why share categories between both report tables?** Each category is stored
+   once, preventing inconsistent repeated category names.
+2. **How is found-item ownership enforced?** SELECT, UPDATE and DELETE filter
+   using the authenticated user's session ID, not a submitted user ID.
+3. **What differs between lost and found reports?** They describe different events
+   and have different primary keys, event dates and permitted statuses.
+
+### Phase 6 suggested commit message
+
+```text
+feat: add found item reporting and management
 ```
 
 ## Viva questions

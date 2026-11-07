@@ -3,6 +3,8 @@
 {% block title %}My Reports | FoundDesk{% endblock %}
 
 {% block content %}
+    <h2>My Reports</h2>
+    <p><a href="{{ url_for('report_found') }}">Report a found item</a></p>
     <h2>My Lost-Item Reports</h2>
     <p><a href="{{ url_for('report_lost') }}">Report a lost item</a></p>
     {% if reports is none %}
@@ -37,6 +39,52 @@
                             {% endif %}
                             {% if not report.has_claims %}
                                 <form method="post" action="{{ url_for('delete_lost_item', lost_id=report.lost_id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            {% else %}
+                                <span>Deletion blocked by a claim.</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    <h2>My Found-Item Reports</h2>
+    {% if found_reports is none %}
+        <p>Found reports are currently unavailable. Please try again later.</p>
+    {% elif not found_reports %}
+        <p>You have not reported any found items.</p>
+    {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Item Name</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Location Found</th>
+                    <th scope="col">Date Found</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in found_reports %}
+                    <tr>
+                        <td>{{ report.item_name }}</td>
+                        <td>{{ report.category_name }}</td>
+                        <td>{{ report.description }}</td>
+                        <td>{{ report.location }}</td>
+                        <td>{{ report.found_date }}</td>
+                        <td>{{ report.status }}</td>
+                        <td>
+                            {% if report.status == 'Available' %}
+                                <a href="{{ url_for('report_found', found_id=report.found_id) }}">Edit</a>
+                            {% endif %}
+                            {% if not report.has_claims %}
+                                <form method="post" action="{{ url_for('delete_found_item', found_id=report.found_id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit">Delete</button>
                                 </form>

@@ -176,7 +176,7 @@ def logout():
     return redirect(url_for("index"))
 
 
-def validate_lost_item(form_data):
+def validate_item_report(form_data, date_field):
     if not form_data.get("item_name") or len(form_data["item_name"]) > 150:
         return "Enter an item name of 1 to 150 characters."
     if not form_data.get("description"):
@@ -190,13 +190,14 @@ def validate_lost_item(form_data):
     except ValueError:
         return "Choose a valid category."
     try:
-        lost_date = date.fromisoformat(form_data.get("lost_date", ""))
-        if lost_date.isoformat() != form_data["lost_date"]:
+        report_date = date.fromisoformat(form_data.get(date_field, ""))
+        if report_date.isoformat() != form_data[date_field]:
             return "Enter a valid date in YYYY-MM-DD format."
     except ValueError:
         return "Enter a valid date in YYYY-MM-DD format."
-    if lost_date > date.today():
-        return "Date lost cannot be in the future."
+    if report_date > date.today():
+        label = "lost" if date_field == "lost_date" else "found"
+        return f"Date {label} cannot be in the future."
     return None
 
 
@@ -240,7 +241,7 @@ def report_lost(lost_id):
                     flash("No categories are available. Run database/sample_data.sql first.")
 
                 if request.method == "POST":
-                    error = validate_lost_item(form_data)
+                    error = validate_item_report(form_data, "lost_date")
                     if error is None and int(form_data["category_id"]) not in {
                         category["category_id"] for category in categories
                     }:
@@ -298,6 +299,7 @@ def report_lost(lost_id):
 @login_required
 def my_reports():
     reports = None
+    found_reports = None
     try:
         with get_connection() as connection:
             with connection.cursor() as cursor:
@@ -314,9 +316,22 @@ def my_reports():
                     (session["user_id"],),
                 )
                 reports = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT f.found_id, f.item_name, c.category_name, f.description,
+                           f.location, f.found_date, f.status,
+                           EXISTS (SELECT 1 FROM claims WHERE found_id = f.found_id) AS has_claims
+                    FROM found_items AS f
+                    JOIN categories AS c ON c.category_id = f.category_id
+                    WHERE f.user_id = %s
+                    ORDER BY f.found_date DESC, f.found_id DESC
+                    """,
+                    (session["user_id"],),
+                )
+                found_reports = cursor.fetchall()
     except psycopg.Error:
         flash("Your reports could not be loaded. Check the database connection and try again.")
-    return render_template("my_reports.html", reports=reports)
+    return render_template("my_reports.html", reports=reports, found_reports=found_reports)
 
 
 @app.route("/lost-items/<int:lost_id>/delete", methods=["POST"])
@@ -339,6 +354,128 @@ def delete_lost_item(lost_id):
                 deleted = cursor.fetchone()
         if deleted:
             flash("Lost report deleted successfully.")
+        else:
+            flash("Report not found, not yours, or referenced by a claim. It cannot be deleted.")
+    except psycopg.errors.ForeignKeyViolation:
+        flash("This report is referenced by a claim and cannot be deleted.")
+    except psycopg.Error:
+        flash("Report could not be deleted. Check the database connection and try again.")
+    return redirect(url_for("my_reports"))
+
+
+@app.route("/report-found", defaults={"found_id": None}, methods=["GET", "POST"])
+@app.route("/found-items/<int:found_id>/edit", methods=["GET", "POST"])
+@login_required
+def report_found(found_id):
+    form_data = {}
+    categories = []
+    database_available = True
+    if request.method == "POST":
+        form_data = {
+            field: request.form.get(field, "").strip()
+            for field in ("item_name", "category_id", "description", "location", "found_date")
+        }
+
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT category_id, category_name FROM categories ORDER BY category_name")
+                categories = cursor.fetchall()
+
+                if found_id is not None:
+                    cursor.execute(
+                        """
+                        SELECT item_name, category_id, description, location, found_date
+                        FROM found_items
+                        WHERE found_id = %s AND user_id = %s AND status = 'Available'
+                        """,
+                        (found_id, session["user_id"]),
+                    )
+                    report = cursor.fetchone()
+                    if report is None:
+                        flash("Report not found, not yours, or already returned. It cannot be edited.")
+                        return redirect(url_for("my_reports"))
+                    if request.method == "GET":
+                        form_data = report
+
+                if not categories:
+                    flash("No categories are available. Run database/sample_data.sql first.")
+
+                if request.method == "POST":
+                    error = validate_item_report(form_data, "found_date")
+                    if error is None and int(form_data["category_id"]) not in {
+                        category["category_id"] for category in categories
+                    }:
+                        error = "Choose a category from the list."
+                    if error:
+                        flash(error)
+                    else:
+                        values = (
+                            int(form_data["category_id"]), form_data["item_name"],
+                            form_data["description"], form_data["location"],
+                            date.fromisoformat(form_data["found_date"]),
+                        )
+                        if found_id is None:
+                            cursor.execute(
+                                """
+                                INSERT INTO found_items
+                                    (category_id, item_name, description, location,
+                                     found_date, user_id, status)
+                                VALUES (%s, %s, %s, %s, %s, %s, 'Available')
+                                """,
+                                values + (session["user_id"],),
+                            )
+                        else:
+                            cursor.execute(
+                                """
+                                UPDATE found_items
+                                SET category_id = %s, item_name = %s, description = %s,
+                                    location = %s, found_date = %s
+                                WHERE found_id = %s AND user_id = %s AND status = 'Available'
+                                RETURNING found_id
+                                """,
+                                values + (found_id, session["user_id"]),
+                            )
+                            if cursor.fetchone() is None:
+                                flash("Report is no longer available for editing.")
+                                return redirect(url_for("my_reports"))
+        # Show success only after the connection context commits the write.
+        if request.method == "POST" and not error:
+            flash("Found item reported successfully." if found_id is None else "Report updated successfully.")
+            return redirect(url_for("my_reports"))
+    except psycopg.errors.ForeignKeyViolation:
+        flash("The category or account is no longer available. Refresh and try again.")
+    except psycopg.Error:
+        database_available = False
+        flash("Found reports are unavailable. Check the database connection and schema, then try again.")
+
+    return render_template(
+        "found_item_form.html", form_data=form_data, categories=categories,
+        found_id=found_id, today=date.today().isoformat(),
+        database_available=database_available,
+    )
+
+
+@app.route("/found-items/<int:found_id>/delete", methods=["POST"])
+@login_required
+def delete_found_item(found_id):
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM found_items
+                    WHERE found_id = %s AND user_id = %s
+                      AND NOT EXISTS (
+                          SELECT 1 FROM claims WHERE claims.found_id = found_items.found_id
+                      )
+                    RETURNING found_id
+                    """,
+                    (found_id, session["user_id"]),
+                )
+                deleted = cursor.fetchone()
+        if deleted:
+            flash("Found report deleted successfully.")
         else:
             flash("Report not found, not yours, or referenced by a claim. It cannot be deleted.")
     except psycopg.errors.ForeignKeyViolation:

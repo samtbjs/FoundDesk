@@ -13,7 +13,7 @@
         <nav aria-label="Main navigation">
             <a href="{{ url_for('index') }}">Home</a> |
             <a href="{{ url_for('report_lost') }}">Report Lost</a> |
-            <span>Report Found</span> |
+            <a href="{{ url_for('report_found') }}">Report Found</a> |
             <span>Browse Items</span> |
             <a href="{{ url_for('my_reports') }}">My Reports</a> |
             {% if session.get('user_id') %}

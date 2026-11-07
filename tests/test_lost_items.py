@@ -8,7 +8,7 @@ from datetime import date, timedelta
 os.environ.setdefault("SECRET_KEY", secrets.token_hex(32))
 
 from flask import render_template, session
-from app import app, validate_lost_item
+from app import app, validate_item_report
 
 
 class LostItemTests(unittest.TestCase):
@@ -37,21 +37,21 @@ class LostItemTests(unittest.TestCase):
             current_session["csrf_token"] = "test-token"
 
     def test_required_fields_and_lengths(self):
-        self.assertIsNone(validate_lost_item(self.form))
+        self.assertIsNone(validate_item_report(self.form, "lost_date"))
         for field in self.form:
             with self.subTest(field=field):
                 data = dict(self.form, **{field: ""})
-                self.assertIsNotNone(validate_lost_item(data))
+                self.assertIsNotNone(validate_item_report(data, "lost_date"))
         for field, value in (("item_name", "x" * 151), ("location", "x" * 201),
                              ("category_id", "abc"), ("category_id", "0"),
                              ("category_id", "2147483648")):
-            self.assertIsNotNone(validate_lost_item(dict(self.form, **{field: value})))
+            self.assertIsNotNone(validate_item_report(dict(self.form, **{field: value}), "lost_date"))
 
     def test_invalid_and_future_dates(self):
         for value in ("2026-02-30", "not-a-date", "20261107",
                       (date.today() + timedelta(days=1)).isoformat()):
-            self.assertIsNotNone(validate_lost_item(dict(self.form, lost_date=value)))
-        self.assertIsNone(validate_lost_item(dict(self.form, lost_date="2024-02-29")))
+            self.assertIsNotNone(validate_item_report(dict(self.form, lost_date=value), "lost_date"))
+        self.assertIsNone(validate_item_report(dict(self.form, lost_date="2024-02-29"), "lost_date"))
 
     def test_anonymous_routes_redirect_to_login(self):
         for path in ("/report-lost", "/my-reports", "/lost-items/1/edit"):
@@ -92,12 +92,12 @@ class LostItemTests(unittest.TestCase):
         }
         with app.test_request_context("/my-reports"):
             session["user_id"] = 1
-            html = render_template("my_reports.html", reports=[report])
+            html = render_template("my_reports.html", reports=[report], found_reports=[])
             self.assertIn('/lost-items/10/edit', html)
             self.assertIn('/lost-items/10/delete', html)
             self.assertIn('&lt;script&gt;', html)
             report.update(status="Resolved", has_claims=True)
-            html = render_template("my_reports.html", reports=[report])
+            html = render_template("my_reports.html", reports=[report], found_reports=[])
             self.assertNotIn('/lost-items/10/edit', html)
             self.assertNotIn('/lost-items/10/delete', html)
             self.assertIn('Deletion blocked by a claim', html)
