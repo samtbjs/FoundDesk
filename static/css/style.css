@@ -1,0 +1,15 @@
+body {
+    margin: 24px;
+    background-color: white;
+    color: black;
+    font-family: Arial, sans-serif;
+    line-height: 1.5;
+}
+
+a {
+    color: black;
+}
+
+hr {
+    margin: 20px 0;
+}
