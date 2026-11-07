@@ -5,4 +5,12 @@
 {% block content %}
     <h2>Welcome to FoundDesk</h2>
     <p>A simple system for reporting and finding lost items.</p>
+
+    <h2>Item Counts</h2>
+    {% if database_error %}
+        <p role="alert">{{ database_error }}</p>
+    {% elif counts is not none %}
+        <p>Lost items: {{ counts.lost_count }}</p>
+        <p>Found items: {{ counts.found_count }}</p>
+    {% endif %}
 {% endblock %}
