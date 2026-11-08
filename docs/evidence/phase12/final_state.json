@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-08",
+  "database": "founddesk_phase12_41a2c6ee18",
+  "totals": {
+    "lost_count": 22,
+    "found_count": 22,
+    "pending_count": 1,
+    "returned_count": 10
+  },
+  "claim_counts": [
+    {
+      "status": "Approved",
+      "count": 9
+    },
+    {
+      "status": "Pending",
+      "count": 1
+    },
+    {
+      "status": "Rejected",
+      "count": 11
+    }
+  ],
+  "browser_demo": [
+    {
+      "claim_id": 21,
+      "lost_id": 24,
+      "found_id": 23,
+      "claim_status": "Approved",
+      "lost_status": "Resolved",
+      "found_status": "Returned"
+    }
+  ],
+  "contradictory_approvals": [],
+  "psql_exit_code": 0,
+  "original_schema_matches_test_schema": true
+}

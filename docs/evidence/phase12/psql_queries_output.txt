@@ -1,0 +1,127 @@
+ lost_id |                   item_name                    | location | lost_date  
+---------+------------------------------------------------+----------+------------
+      21 | test_16_submission_racing_approval_e2475elost  | Library  | 2026-01-02
+      19 | test_14_totals_category_zero_and_st_35d9fdL1   | Library  | 2026-01-02
+      18 | test_14_totals_category_zero_and_st_35d9fdL0   | Library  | 2026-01-02
+      17 | test_13_concurrent_approve_reject_a_546785lost | Library  | 2026-01-02
+      12 | test_10_concurrent_shared_found_app_423cb5lost | Library  | 2026-01-02
+      10 | test_08_csrf_access_and_no_writes_6279calost   | Library  | 2026-01-02
+       9 | test_07_admin_approval_and_rejectio_be3e3bb    | Library  | 2026-01-02
+       8 | test_07_admin_approval_and_rejectio_be3e3bc    | Library  | 2026-01-02
+       6 | test_06_claim_eligibility_abfe5elost           | Library  | 2026-01-02
+       4 | test_05_claim_privacy_duplicates_an_864d79lost | Library  | 2026-01-02
+       3 | Search Keys test_04_search_and_detail_44997b   | Library  | 2026-01-01
+(11 rows)
+
+ lost_count | found_count | pending_count | returned_count 
+------------+-------------+---------------+----------------
+         22 |          22 |             1 |             10
+(1 row)
+
+               category_name                | lost_count | found_count 
+--------------------------------------------+------------+-------------
+ Accessories                                |          0 |           0
+ Books                                      |          0 |           0
+ Electronics                                |          0 |           0
+ ID Cards                                   |          0 |           0
+ Keys                                       |         20 |          19
+ Other                                      |          0 |           0
+ test_14_totals_category_zero_and_st_35d9fd |          2 |           3
+(7 rows)
+
+  status  | claim_count 
+----------+-------------
+ Approved |           9
+ Pending  |           1
+ Rejected |          11
+(3 rows)
+
+               category_name                | unresolved_count 
+--------------------------------------------+------------------
+ Keys                                       |                9
+ test_14_totals_category_zero_and_st_35d9fd |                2
+(2 rows)
+
+ found_id |                    item_name                    | category_name |    location     | found_date 
+----------+-------------------------------------------------+---------------+-----------------+------------
+       23 | Demo Blue Keyring Found                         | Keys          | College Library | 2026-11-08
+       20 | test_16_submission_racing_approval_e2475elost   | Keys          | Library         | 2026-01-02
+       19 | test_16_submission_racing_approval_e2475efound  | Keys          | Library         | 2026-01-02
+       14 | test_12_concurrent_crossing_pairs_bbefe72       | Keys          | Library         | 2026-01-02
+       13 | test_12_concurrent_crossing_pairs_bbefe71       | Keys          | Library         | 2026-01-02
+       11 | test_11_concurrent_shared_lost_appr_fb63c9found | Keys          | Library         | 2026-01-02
+       10 | test_10_concurrent_shared_found_app_423cb5found | Keys          | Library         | 2026-01-02
+        9 | test_09_atomic_rollback_ab1cedfound             | Keys          | Library         | 2026-01-02
+        5 | test_07_admin_approval_and_rejectio_be3e3bb     | Keys          | Library         | 2026-01-02
+        4 | test_06_claim_eligibility_abfe5efound           | Keys          | Library         | 2026-01-02
+(10 rows)
+
+ lost_id |                   item_name                    |               category_name                | location | lost_date  
+---------+------------------------------------------------+--------------------------------------------+----------+------------
+      21 | test_16_submission_racing_approval_e2475elost  | Keys                                       | Library  | 2026-01-02
+      19 | test_14_totals_category_zero_and_st_35d9fdL1   | test_14_totals_category_zero_and_st_35d9fd | Library  | 2026-01-02
+      18 | test_14_totals_category_zero_and_st_35d9fdL0   | test_14_totals_category_zero_and_st_35d9fd | Library  | 2026-01-02
+      17 | test_13_concurrent_approve_reject_a_546785lost | Keys                                       | Library  | 2026-01-02
+      12 | test_10_concurrent_shared_found_app_423cb5lost | Keys                                       | Library  | 2026-01-02
+      10 | test_08_csrf_access_and_no_writes_6279calost   | Keys                                       | Library  | 2026-01-02
+       9 | test_07_admin_approval_and_rejectio_be3e3bb    | Keys                                       | Library  | 2026-01-02
+       8 | test_07_admin_approval_and_rejectio_be3e3bc    | Keys                                       | Library  | 2026-01-02
+       6 | test_06_claim_eligibility_abfe5elost           | Keys                                       | Library  | 2026-01-02
+       4 | test_05_claim_privacy_duplicates_an_864d79lost | Keys                                       | Library  | 2026-01-02
+       3 | Search Keys test_04_search_and_detail_44997b   | Keys                                       | Library  | 2026-01-01
+(11 rows)
+
+ found_id |                    item_name                    | found_date 
+----------+-------------------------------------------------+------------
+        2 | Search Keys test_04_search_and_detail_44997b    | 2026-01-03
+       22 | test_18_stale_admin_eligibility_d57c2dfound     | 2026-01-02
+       21 | test_16_submission_racing_approval_e2475efound  | 2026-01-02
+       18 | test_14_totals_category_zero_and_st_35d9fdF2    | 2026-01-02
+       17 | test_14_totals_category_zero_and_st_35d9fdF1    | 2026-01-02
+       16 | test_14_totals_category_zero_and_st_35d9fdF0    | 2026-01-02
+       15 | test_13_concurrent_approve_reject_a_546785found | 2026-01-02
+       12 | test_11_concurrent_shared_lost_appr_fb63c9found | 2026-01-02
+        8 | test_08_csrf_access_and_no_writes_6279cafound   | 2026-01-02
+        7 | test_07_admin_approval_and_rejectio_be3e3bc     | 2026-01-02
+        6 | test_07_admin_approval_and_rejectio_be3e3bc     | 2026-01-02
+(11 rows)
+
+BEGIN
+CREATE VIEW
+ lost_id |                   item_name                    |               category_name                | location | lost_date  
+---------+------------------------------------------------+--------------------------------------------+----------+------------
+      21 | test_16_submission_racing_approval_e2475elost  | Keys                                       | Library  | 2026-01-02
+      19 | test_14_totals_category_zero_and_st_35d9fdL1   | test_14_totals_category_zero_and_st_35d9fd | Library  | 2026-01-02
+      18 | test_14_totals_category_zero_and_st_35d9fdL0   | test_14_totals_category_zero_and_st_35d9fd | Library  | 2026-01-02
+      17 | test_13_concurrent_approve_reject_a_546785lost | Keys                                       | Library  | 2026-01-02
+      12 | test_10_concurrent_shared_found_app_423cb5lost | Keys                                       | Library  | 2026-01-02
+      10 | test_08_csrf_access_and_no_writes_6279calost   | Keys                                       | Library  | 2026-01-02
+       9 | test_07_admin_approval_and_rejectio_be3e3bb    | Keys                                       | Library  | 2026-01-02
+       8 | test_07_admin_approval_and_rejectio_be3e3bc    | Keys                                       | Library  | 2026-01-02
+       6 | test_06_claim_eligibility_abfe5elost           | Keys                                       | Library  | 2026-01-02
+       4 | test_05_claim_privacy_duplicates_an_864d79lost | Keys                                       | Library  | 2026-01-02
+       3 | Search Keys test_04_search_and_detail_44997b   | Keys                                       | Library  | 2026-01-01
+(11 rows)
+
+ROLLBACK
+BEGIN
+CREATE TABLE
+ category_id |  category_name  
+-------------+-----------------
+           1 | Demo Stationery
+(1 row)
+
+INSERT 0 1
+ category_id |       category_name       
+-------------+---------------------------
+           1 | Demo Books and Stationery
+(1 row)
+
+UPDATE 1
+ category_id |       category_name       
+-------------+---------------------------
+           1 | Demo Books and Stationery
+(1 row)
+
+DELETE 1
+ROLLBACK

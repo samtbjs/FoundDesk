@@ -3,9 +3,11 @@
 Lost and Found Item Tracking System — a college DBMS mini project using Python,
 Flask, PostgreSQL, psycopg 3, Jinja/HTML and basic CSS.
 
-**Phase 11 status: static review and draft documentation prepared. The project is
-not complete. Real PostgreSQL integration, browser checks and screenshots are
-pending Phase 12.** No SQLite, ORM, mock database or external service is used.
+**Phase 12 status: the core local PostgreSQL/browser workflow is verified.**
+All 42 non-DB tests and 18 real PostgreSQL integration tests passed on 2026-11-08.
+Real screenshots and SQL output are included. Extended unexecuted variants and
+submission details are listed in the checklist; no blanket acceptance claim is
+made for those. No SQLite, ORM, mock database or external service is used.
 
 ## Current features
 
@@ -15,7 +17,7 @@ pending Phase 12.** No SQLite, ORM, mock database or external service is used.
 - Student claims linking an owned unresolved loss to another user's Available find.
 - My Claims with private reasons and status.
 - Admin Pending Claims dashboard, transactional approval/rejection and Reports.
-- SQL examples, database design, draft report, viva guide and explicit test checklist.
+- SQL examples, database design, evidenced report, viva guide and explicit test checklist.
 
 Home/register/login are public. Item/report/claim pages require login. Submission
 requires student role; admin decisions and Reports require admin role. The server
@@ -35,7 +37,9 @@ checks access even when buttons/links are hidden.
 | tests/ | Non-DB unittest checks, without a substitute database |
 | .env.example | Placeholder settings; copy locally and replace values |
 | requirements.txt | Flask, psycopg[binary], python-dotenv |
-| docs/ | Draft project report, review, design, SQL/viva guides and testing checklist |
+| docs/ | Project report, review, real evidence, design, SQL/viva/demo guides and checklist |
+| scripts/phase12_*.py | Isolated real PostgreSQL setup, browser server and evidence capture |
+| tests/postgres_integration.py | Explicit real-DB suite, separate from default test discovery |
 
 ## 1. Install Python dependencies (Windows PowerShell)
 
@@ -81,17 +85,31 @@ Percent-encode reserved characters in the URL password. Keep .env out of Git;
 precedence over dotenv values; remove stale environment overrides if edits seem
 ineffective. Do not paste credentials into documentation, screenshots or issues.
 
-PostgreSQL may be installed later. With a valid secret, Flask can start without a
+PostgreSQL 18 is now installed and was reached successfully on this computer.
+For a new machine where it is not yet installed, Flask can start with a valid secret without a
 working DB and shows availability messages; real registration, reporting, claims
 and SQL reads cannot succeed until PostgreSQL is configured. Do not substitute
 SQLite or remove DB features to get a successful-looking demonstration.
 
-## 3. Initialize PostgreSQL locally (Phase 12)
+## 3. Initialize PostgreSQL locally
 
 Install PostgreSQL and optionally pgAdmin. Start the server on localhost:5432.
 Create a new `founddesk` database; run the schema once on the new database, then
 seed categories. Use your chosen local PostgreSQL role in place of postgres if
 needed. Commands prompt for its password; do not place the password in a command.
+
+On this machine the service is `postgresql-x64-18` and the executables are under
+`C:\Program Files\PostgreSQL\18\bin`. Confirm access in PowerShell:
+
+```powershell
+Get-Service -Name postgresql-x64-18
+& 'C:\Program Files\PostgreSQL\18\bin\pg_isready.exe' -h localhost -p 5432
+& 'C:\Program Files\PostgreSQL\18\bin\psql.exe' -h localhost -p 5432 -U your_postgres_user -d founddesk -c 'SELECT version();'
+```
+
+If psql is not on PATH, use that absolute executable path for the commands below.
+The existing founddesk schema was already initialized here and was preserved;
+skip CREATE DATABASE/schema.sql for that existing database.
 
 ```powershell
 psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE founddesk;"
@@ -133,8 +151,9 @@ local Flask development server; no deployment or HTTPS setup is included.
 5. As admin, open Admin, verify ownership and approve/reject a Pending claim.
 6. Inspect item statuses, My Claims and [Reports locally](http://127.0.0.1:5000/reports).
 
-These are intended demonstration steps, **not recorded passing results**. Follow
-the testing checklist in Phase 12 and capture only actual screenshots/SQL output.
+This sequence was exercised in the browser against an isolated local test DB.
+See [actual local results](docs/local_integration_results.md), [real screenshots](docs/project_report.md)
+and the [compact demo plus ten viva answers](docs/demo_script.md).
 
 ## Implementation and SQL walkthrough
 
@@ -178,23 +197,43 @@ inputs, and check validation, access/CSRF, escaping, startup and unavailable-DB 
 They do not establish successful DB login, SQL syntax/results, persistence,
 constraints, transactions, concurrency or browser layout. See the exact recorded
 run status in [Testing checklist](docs/testing_checklist.md).
-Phase 11 verification on 2026-11-08: compilation, all 42 tests and loading all 14
-Jinja templates passed. No successful PostgreSQL operation was tested.
+Phase 12 reran compilation and all 42 non-DB tests successfully. All 18 additional
+real PostgreSQL integration tests passed, including ownership/privacy, duplicate
+claims, forced rollback and bounded concurrent decisions/submissions. Actual
+psql execution of queries.sql and a browser registration-to-return flow passed.
+Installed requirements were already satisfied; pip check found no broken dependencies.
 
-Every end-to-end/DB case is NOT YET RUN until executed with local PostgreSQL.
-Phase 12 must verify schema/constraints; real authentication and CRUD; search and
-aggregate SQL; multi-account privacy; duplicate/race/rollback behavior; browser
-flows; and actual screenshots/results. Apply necessary fixes, rerun affected checks
-and finalize the draft report only after that work. Do not declare completion now.
+To reproduce in a fresh isolated PostgreSQL test DB (needs CREATEDB privileges):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/phase12_setup.py
+.\.venv\Scripts\python.exe tests/postgres_integration.py
+.\.venv\Scripts\python.exe scripts/phase12_server.py
+```
+
+The browser test server uses port 5012; the normal .env app uses port 5000.
+Each setup run creates another test database and replaces the metadata file;
+archive docs/evidence/phase12 before reproducing if you want to retain this run's
+screenshots/results. Original founddesk data is preserved and .env is not rewritten.
+The suite refuses to run on a non-test DB or reuse a populated test account table.
+SQL/browser evidence is from founddesk_phase12_41a2c6ee18. Failed harness attempts
+were retained separately, not passed off as successful runs.
+
+Extended cases still unexecuted include full narrow-viewport/keyboard sweeps,
+all validation permutations, registration races, live service stop/start, network
+loss during commit, prolonged load and pgAdmin editor execution. See the checklist
+for exact scope; title-page details/user acceptance also remain to be supplied.
 
 ## Documentation
 
-- [Draft project report](docs/project_report.md): all required report sections and screenshot placeholders.
+- [Project report](docs/project_report.md): required sections and real screenshots/output links.
+- [Local integration results](docs/local_integration_results.md): versions, actual results, harness corrections and reproduction steps.
+- [Compact demo and ten viva questions](docs/demo_script.md).
 - [Static review](docs/static_review.md): review scope, findings, necessary fix and limitations.
 - [Viva guide](docs/viva_guide.md): frontend, Flask, security, database, SQL and request-flow answers.
 - [Database design](docs/database_design.md): entities, attributes, ER, relational constraints and normalization caveat.
 - [SQL reports guide](docs/sql_reports.md): each query's meaning and pgAdmin steps.
-- [Testing checklist](docs/testing_checklist.md): evidence ledger and NOT YET RUN integration cases.
+- [Testing checklist](docs/testing_checklist.md): actual PASS evidence and remaining unexecuted variants.
 
 For optional SQL demonstrations after DB initialization:
 
@@ -206,19 +245,20 @@ Q1–Q8 read application data. Execute Q9/Q10 only as complete BEGIN-through-ROL
 blocks. They create temporary objects and never write application rows/sequences.
 Flask does not need this script installed; see the SQL guide for interactive use.
 
-## Phase 11 changes and viva
+## Phase 12 changes and viva
 
-Changed app.py to reject blank/known-example signing keys; added startup regression
-tests. Prepared the draft report, review and viva guide; organized current setup;
-labelled deferred test cases explicitly. No schema/query migration or DB operation
-was performed, and no fabricated evidence is included.
+Added isolated-DB setup/server/capture helpers, 18 real-DB tests and actual evidence.
+Updated the report/checklist/README/SQL/viva docs and added local results/demo guides.
+No application or schema defect was established in the tested flows; corrections
+were confined to the new test harness. Test fixtures used actual INSERT/SELECT/
+UPDATE/DELETE and rolled-back demo operations; original application data was preserved.
 
-1. **What does static review prove?** It identifies code-level issues and consistency;
-   it does not prove successful database or concurrent behavior.
-2. **Why reject the example SECRET_KEY?** A known key could allow forged signed
-   session contents, including an admin role.
-3. **Why is Phase 12 still needed?** Real DB workflows, constraints, races, rollback,
-   browser behavior and screenshots need actual execution and recorded evidence.
+1. **Why an isolated PostgreSQL DB?** It runs the actual SQL/transactions while
+   preserving existing application data; it is not a mock or SQLite substitute.
+2. **What did rollback testing establish?** A deliberately failed second approval
+   UPDATE left the claim and both items unchanged; removing the constraint allowed success.
+3. **What did concurrency testing establish?** The tested shared-item decisions
+   allowed one winner and rejected conflicts, without claiming every possible race was tested.
 
-Suggested commit: `docs: prepare project documentation and testing checklist`.
+Suggested commit: `test: verify local PostgreSQL integration and finalize docs`.
 No automatic commit is part of this phase.

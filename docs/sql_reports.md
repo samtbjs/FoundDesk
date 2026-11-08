@@ -80,4 +80,6 @@ psql -h localhost -p 5432 -U postgres -d founddesk -v ON_ERROR_STOP=1 -f databas
 
 Flask does not need queries.sql installed to start. The script creates no lasting
 view/table and never writes the application's five tables or identity sequences.
-SQL execution and pgAdmin output remain unverified until local PostgreSQL testing.
+Phase 12: the script executed successfully against real PostgreSQL through psycopg
+and installed psql. Actual output is in evidence/phase12/psql_queries_output.txt;
+see local_integration_results.md. pgAdmin UI execution itself was not observed.

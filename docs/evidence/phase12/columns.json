@@ -1,0 +1,302 @@
+[
+  {
+    "table_name": "categories",
+    "column_name": "category_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "YES",
+    "identity_generation": "ALWAYS",
+    "column_default": null
+  },
+  {
+    "table_name": "categories",
+    "column_name": "category_name",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "claim_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "YES",
+    "identity_generation": "ALWAYS",
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "lost_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "found_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "claimant_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "claim_reason",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "claims",
+    "column_name": "claim_date",
+    "data_type": "date",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": "CURRENT_DATE"
+  },
+  {
+    "table_name": "claims",
+    "column_name": "status",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": "'Pending'::character varying"
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "found_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "YES",
+    "identity_generation": "ALWAYS",
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "user_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "category_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "item_name",
+    "data_type": "character varying",
+    "character_maximum_length": 150,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "description",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "location",
+    "data_type": "character varying",
+    "character_maximum_length": 200,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "found_date",
+    "data_type": "date",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "found_items",
+    "column_name": "status",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": "'Available'::character varying"
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "lost_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "YES",
+    "identity_generation": "ALWAYS",
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "user_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "category_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "item_name",
+    "data_type": "character varying",
+    "character_maximum_length": 150,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "description",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "location",
+    "data_type": "character varying",
+    "character_maximum_length": 200,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "lost_date",
+    "data_type": "date",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "lost_items",
+    "column_name": "status",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": "'Lost'::character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "user_id",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "YES",
+    "identity_generation": "ALWAYS",
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "full_name",
+    "data_type": "character varying",
+    "character_maximum_length": 100,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": 254,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "NO",
+    "is_identity": "NO",
+    "identity_generation": null,
+    "column_default": "'student'::character varying"
+  }
+]

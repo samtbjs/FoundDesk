@@ -1,6 +1,6 @@
 # FoundDesk — Lost and Found Item Tracking System
 
-**Draft project report — Phase 11**
+**Project report — Phase 12 core integration verified, 2026-11-08**
 
 College: [TO BE FILLED]  
 Department/course: [TO BE FILLED]  
@@ -8,9 +8,10 @@ Student name(s)/ID(s): [TO BE FILLED]
 Guide: [TO BE FILLED]  
 Academic year: [TO BE FILLED]
 
-This report describes the implemented code and schema through Phase 11. Successful
-PostgreSQL workflows, SQL output and browser screenshots have not been verified.
-Phase 12 must supply actual integration results before this becomes a final report.
+This report describes the implemented code/schema and actual Phase 12 local
+PostgreSQL/browser evidence. The core workflow was verified on this Windows
+computer; detailed remaining test variants are listed in testing_checklist.md.
+Title-page personal/course details still need the student's own information.
 
 ## 1. Problem Statement
 
@@ -248,7 +249,8 @@ pgAdmin steps are in sql_reports.md.
 Reject uses UPDATE with `WHERE claim_id = %s AND status = 'Pending' RETURNING claim_id`.
 If no row is returned, a repeated/concurrent decision gives 409. Row locks are
 intended to serialize competing approvals/submissions; actual race/rollback behavior
-is NOT YET RUN against PostgreSQL.
+passed the bounded Phase 12 PostgreSQL races and forced-rollback test. This is not
+a prolonged load test or proof of every possible interleaving.
 
 ## 12. Database Connectivity and Request Flow
 
@@ -274,58 +276,74 @@ the token; login/student guards run; Flask checks/locks related records; paramet
 INSERT creates Pending; successful commit redirects to My Claims (Post/Redirect/Get).
 The claimant ID, date and initial status are chosen by the server, not the form.
 
-## 13. Results and Observations — Draft Evidence
+## 13. Results and Observations — Actual Local Evidence
 
 Static review found bound SQL parameters, ownership/role checks, CSRF forms, schema
 status alignment and transaction contexts in the code. One necessary configuration
 fix rejects the known example signing key and whitespace. The review also corrected
 obsolete setup instructions and retained the honest normalization limitation.
 
-On 2026-11-08, Python compilation, all 42 automated tests and loading all 14 Jinja
-templates passed. Exact checks and scope are recorded in testing_checklist.md.
-They cover non-DB behavior only: validation, access redirects/denials,
-template escaping, startup configuration and deliberate missing-DATABASE_URL paths.
-Test-created sessions and template input dictionaries do not prove real login,
-persistence, successful SQL or browser layout.
+On 2026-11-08, Python compilation and all 42 non-DB tests passed again. In addition,
+all 18 real PostgreSQL integration tests passed on PostgreSQL 18.6, Python 3.14.10
+and Flask 3.1.3. The actual schema/seed ran in an isolated local test database;
+the existing founddesk data and private .env were preserved. A Flask server on
+loopback port 5012 used that same real test database for browser verification.
 
 | Integration evidence | Current status |
 | --- | --- |
-| PostgreSQL installation, schema and constraints | NOT YET RUN |
-| Real registration/login and report CRUD | NOT YET RUN |
-| Search SQL, claim submission and multi-account privacy | NOT YET RUN |
-| Decisions, rollback and concurrent requests | NOT YET RUN |
-| Aggregate totals, SQL demos and pgAdmin output | NOT YET RUN |
-| Browser end-to-end checks and screenshots | NOT YET RUN |
+| PostgreSQL connection, schema and constraints | PASS: running local service, schema/seed, constraints and required columns; existing database preserved |
+| Real registration/login and report CRUD | PASS: real committed writes/reads, hashes, duplicate email, ownership, validation and deletion cases |
+| Search SQL, claim submission and multi-account privacy | PASS for covered cases: combined filters, empty results, duplicate pairs and reason isolation |
+| Decisions, rollback and concurrent requests | PASS: both decision branches, forced failure rollback and bounded competing requests |
+| Aggregate totals and SQL demos | PASS: actual psql output and temporary rollback demos; no pgAdmin UI screenshot claimed |
+| Browser workflow and screenshots | PASS: two registered students, reports/search/claim, admin approve/reject, Reports and committed statuses |
 
-No real DB outputs, timing claims, screenshots or successful end-to-end results
-are included in this draft.
+The browser demonstration created claim 21 linking loss 24 and find 23. Actual
+readback shows Approved/Resolved/Returned. Final test-data totals were 22 lost,
+22 found, 1 Pending and 10 Returned; claim counts were 9 Approved, 1 Pending and
+11 Rejected. Returned differs from Approved because eligibility tests intentionally
+changed item statuses to exercise stale-state rejection. No contradictory Approved
+item IDs were found. Counts differ across earlier screenshots as data was added.
 
-## 14. Screenshot Placeholders
+The first two integration attempts had test-harness errors (redirect handling,
+generated label length, PostgreSQL RESTRICT exception class), corrected before
+the fresh successful run. No application defect was established by the covered
+flows. See [local results](local_integration_results.md), [actual SQL output](evidence/phase12/psql_queries_output.txt)
+and [final persisted states](evidence/phase12/final_state.json). Detailed variants
+such as viewport/accessibility sweeps and prolonged load remain unexecuted.
 
-Replace only after capturing the actual application in Phase 12. Use test accounts;
-exclude .env, DB credentials, session cookies and unrelated personal details.
+## 14. Real Screenshots and SQL Evidence
 
-| Placeholder | Actual screen to capture after verification |
+Captured from the actual local Flask app using isolated test accounts. These are
+not mockups. No .env, database password or session cookie is shown. The full-page
+Reports image is long because it contains the integration-test item lists.
+
+| Evidence | Actual captured screen/output |
 | --- | --- |
-| [SCREENSHOT PENDING: S01] | Home with actual lost/found counts |
-| [SCREENSHOT PENDING: S02] | Registration/login form (passwords hidden) |
-| [SCREENSHOT PENDING: S03] | Lost report form and resulting My Reports row |
-| [SCREENSHOT PENDING: S04] | Found report form and resulting My Reports row |
-| [SCREENSHOT PENDING: S05] | Browse filters/results and item details |
-| [SCREENSHOT PENDING: S06] | Claim form and claimant's Pending claim |
-| [SCREENSHOT PENDING: S07] | Admin Pending Claims table with test data |
-| [SCREENSHOT PENDING: S08] | Verified decision reflected in My Claims/item statuses |
-| [SCREENSHOT PENDING: S09] | Reports totals/category/status tables |
-| [SCREENSHOT PENDING: S10] | Real pgAdmin query output/constraints after execution |
+| S01 | [Home](evidence/phase12/screenshots/S01-home.jpg) |
+| S02 | [Registration](evidence/phase12/screenshots/S02-register.jpg) |
+| S03 | [Lost form](evidence/phase12/screenshots/S03-lost-form.jpg) and [saved report](evidence/phase12/screenshots/S03-lost-saved.jpg) |
+| S04 | [Found form](evidence/phase12/screenshots/S04-found-form.jpg) and [saved report](evidence/phase12/screenshots/S04-found-saved.jpg) |
+| S05 | [Combined search](evidence/phase12/screenshots/S05-search.jpg) and [details](evidence/phase12/screenshots/S05-detail.jpg) |
+| S06 | [Claim form](evidence/phase12/screenshots/S06-claim-form.jpg) and [Pending](evidence/phase12/screenshots/S06-claim-pending.jpg) |
+| S07 | [Admin Pending Claims](evidence/phase12/screenshots/S07-admin-pending.jpg) |
+| S08 | [Approved claim](evidence/phase12/screenshots/S08-my-claim-approved.jpg), [Returned find](evidence/phase12/screenshots/S08-found-returned.jpg), [Resolved loss](evidence/phase12/screenshots/S08-lost-resolved.jpg), [separate rejection](evidence/phase12/screenshots/S08-admin-rejected.jpg) |
+| S09 | [Reports](evidence/phase12/screenshots/S09-reports.jpg) |
+| S10 | [Actual psql output](evidence/phase12/psql_queries_output.txt) and [constraint metadata](evidence/phase12/test_constraints.json); output supplied instead of an invented pgAdmin screenshot |
+
+![Combined search from the real local app](evidence/phase12/screenshots/S05-search.jpg)
+
+![Committed Approved claim](evidence/phase12/screenshots/S08-my-claim-approved.jpg)
 
 ## 15. Conclusion
 
 FoundDesk's code implements a small relational lost-and-found workflow using
 Flask, PostgreSQL SQL and server-rendered forms. It demonstrates relational keys,
 joins, aggregates, constrained statuses and coordinated claim decisions. The
-current draft documents what the code does and where it still needs evidence.
-The project is not declared complete: Phase 12 must configure PostgreSQL, run the
-full checklist, fix observed integration issues and supply real screenshots/results.
+report now includes verified local database/browser evidence for the core workflow.
+The requested registration-to-return demonstration, SQL examples and key security/
+transaction tests passed. Further variants are explicitly listed as unexecuted in
+the checklist; final submission/acceptance also needs the student's title-page details.
 
 Known limits include session roles cached until login, application-enforced
 cross-table rules, the claims normalization caveat, no stored return date, and

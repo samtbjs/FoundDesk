@@ -1,0 +1,198 @@
+[
+  {
+    "contype": "c",
+    "definition": "CHECK (((role)::text = ANY ((ARRAY['student'::character varying, 'admin'::character varying])::text[])))"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL user_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL full_name"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL email"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL password_hash"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL role"
+  },
+  {
+    "contype": "p",
+    "definition": "PRIMARY KEY (user_id)"
+  },
+  {
+    "contype": "u",
+    "definition": "UNIQUE (email)"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL category_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL category_name"
+  },
+  {
+    "contype": "p",
+    "definition": "PRIMARY KEY (category_id)"
+  },
+  {
+    "contype": "u",
+    "definition": "UNIQUE (category_name)"
+  },
+  {
+    "contype": "c",
+    "definition": "CHECK (((status)::text = ANY ((ARRAY['Lost'::character varying, 'Resolved'::character varying])::text[])))"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL lost_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL user_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL category_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL item_name"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL description"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL location"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL lost_date"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL status"
+  },
+  {
+    "contype": "p",
+    "definition": "PRIMARY KEY (lost_id)"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "c",
+    "definition": "CHECK (((status)::text = ANY ((ARRAY['Available'::character varying, 'Returned'::character varying])::text[])))"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL found_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL user_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL category_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL item_name"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL description"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL location"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL found_date"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL status"
+  },
+  {
+    "contype": "p",
+    "definition": "PRIMARY KEY (found_id)"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "c",
+    "definition": "CHECK (((status)::text = ANY ((ARRAY['Pending'::character varying, 'Approved'::character varying, 'Rejected'::character varying])::text[])))"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL claim_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL lost_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL found_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL claimant_id"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL claim_reason"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL claim_date"
+  },
+  {
+    "contype": "n",
+    "definition": "NOT NULL status"
+  },
+  {
+    "contype": "p",
+    "definition": "PRIMARY KEY (claim_id)"
+  },
+  {
+    "contype": "u",
+    "definition": "UNIQUE (lost_id, found_id)"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (lost_id) REFERENCES lost_items(lost_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (found_id) REFERENCES found_items(found_id) ON DELETE RESTRICT"
+  },
+  {
+    "contype": "f",
+    "definition": "FOREIGN KEY (claimant_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+  }
+]

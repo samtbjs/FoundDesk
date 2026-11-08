@@ -1,5 +1,9 @@
 # Phase 11 static review
 
+Historical snapshot: the remaining-verification notes below describe the end of
+Phase 11. Phase 12 has since exercised the core PostgreSQL/browser workflows;
+see [current local results](local_integration_results.md) and testing_checklist.md.
+
 Status: draft review completed; PostgreSQL integration and project acceptance are
 pending Phase 12. This review does not certify successful database operations.
 

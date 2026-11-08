@@ -1,7 +1,9 @@
-# FoundDesk viva guide — Phase 11 draft
+# FoundDesk viva guide — updated through Phase 12
 
-Explain the actual code, not an imagined feature. PostgreSQL integration evidence
-is pending Phase 12; distinguish a static explanation from a test you have run.
+Explain the actual code, not an imagined feature. Core PostgreSQL/browser evidence
+is now available in local_integration_results.md: 18 integration and 42 non-DB tests
+passed. Distinguish those covered cases from unexecuted variants in the checklist.
+See demo_script.md for the compact demo and ten typical questions.
 
 ## Frontend: HTML, CSS and Jinja
 
@@ -142,10 +144,11 @@ is pending Phase 12; distinguish a static explanation from a test you have run.
     Resolved, other Pending claims sharing either item Rejected in one transaction.
 53. **Why FOR UPDATE?** It locks rows until transaction end so competitors wait and
     recheck committed eligibility. Submission/approval lock found then lost; approval
-    also locks overlapping claims by ID. PostgreSQL concurrency checks are still pending.
+    also locks overlapping claims by ID. The bounded Phase 12 concurrency cases passed.
 54. **What if two admins decide the same claim?** Conditional Pending checks and locks
-    are intended to allow only one decision. The other receives a conflict. This must
-    be verified using actual concurrent PostgreSQL sessions in Phase 12.
+    are intended to allow only one decision. The other receives a conflict. This
+    passed the actual concurrent PostgreSQL requests covered in Phase 12; prolonged
+    load and all possible interleavings were not exhaustively tested.
 55. **What does rejection change?** Only a Pending claim's status, not item statuses.
 56. **How does a search reach the database?** GET values -> request.args -> validation
     -> parameterized SELECTs -> dictionary rows -> Jinja results table.
@@ -156,9 +159,10 @@ is pending Phase 12; distinguish a static explanation from a test you have run.
 59. **Does any connection error prove rollback?** Errors before commit roll back on
     context exit. A dropped connection during commit can leave the outcome uncertain;
     refresh/check persisted status before retrying.
-60. **What testing is still required?** Real PostgreSQL schema/constraints, login/CRUD,
-    SQL search/aggregates, privacy, atomicity/concurrency, browser flows and actual
-    screenshots. Non-DB tests are useful but do not prove these integration results.
+60. **What testing is still required?** Core DB/authentication/CRUD/search/privacy/
+    transaction cases and a real browser demo passed. The checklist still lists
+    extended variants such as full viewport/accessibility, service stop/start,
+    network loss during commit, account changes and prolonged concurrency.
 
 ## Demonstration order for Phase 12
 
@@ -166,4 +170,5 @@ Start PostgreSQL and Flask, register/log in with real test accounts, submit a lo
 and a find, search, claim as the loss owner, review as admin, approve, and show
 updated My Claims/report totals. Show a real JOIN/GROUP BY query in pgAdmin and
 explain its result. Use testing_checklist.md and capture evidence only after each
-step really works; no screenshots/results are supplied by this draft guide.
+step really works. Actual evidence is linked from project_report.md and
+local_integration_results.md; do not imply additional unrun cases passed.

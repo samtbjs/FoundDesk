@@ -1,0 +1,68 @@
+{
+  "database": "founddesk_phase12_3b26061f5d",
+  "cases": [
+    {
+      "test": "__main__.PostgreSQLIntegration.test_01_schema_seed_and_constraints",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_02_authentication_persistence_and_duplicates",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_03_crud_owner_validation_and_status",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_04_search_and_detail",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_05_claim_privacy_duplicates_and_deletion",
+      "status": "ERROR",
+      "exception": "RestrictViolation"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_06_claim_eligibility",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_07_admin_approval_and_rejection",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_08_csrf_access_and_no_writes",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_09_atomic_rollback",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_10_concurrent_shared_found_approvals",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_11_concurrent_shared_lost_approvals",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_12_concurrent_crossing_pairs",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_13_concurrent_approve_reject_and_duplicate_submission",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_14_totals_category_zero_and_status_counts",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.PostgreSQLIntegration.test_15_queries_sql_real_results_and_no_mutations",
+      "status": "PASS"
+    }
+  ],
+  "tests_run": 15,
+  "successful": false
+}

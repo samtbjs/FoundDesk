@@ -1,0 +1,264 @@
+{
+  "local_database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "founddesk",
+    "server_version": 180006
+  },
+  "test_database": "founddesk_phase12_41a2c6ee18",
+  "python": "3.14.10",
+  "packages": {
+    "Flask": "3.1.3",
+    "psycopg": "3.3.8",
+    "psycopg-binary": "3.3.8",
+    "python-dotenv": "1.2.4",
+    "Werkzeug": "3.1.9"
+  },
+  "existing_constraints": [
+    {
+      "table_name": "categories",
+      "contype": "n",
+      "definition": "NOT NULL category_id"
+    },
+    {
+      "table_name": "categories",
+      "contype": "u",
+      "definition": "UNIQUE (category_name)"
+    },
+    {
+      "table_name": "categories",
+      "contype": "n",
+      "definition": "NOT NULL category_name"
+    },
+    {
+      "table_name": "categories",
+      "contype": "p",
+      "definition": "PRIMARY KEY (category_id)"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL claim_date"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL claim_id"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL claim_reason"
+    },
+    {
+      "table_name": "claims",
+      "contype": "f",
+      "definition": "FOREIGN KEY (claimant_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL claimant_id"
+    },
+    {
+      "table_name": "claims",
+      "contype": "f",
+      "definition": "FOREIGN KEY (found_id) REFERENCES found_items(found_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL found_id"
+    },
+    {
+      "table_name": "claims",
+      "contype": "u",
+      "definition": "UNIQUE (lost_id, found_id)"
+    },
+    {
+      "table_name": "claims",
+      "contype": "f",
+      "definition": "FOREIGN KEY (lost_id) REFERENCES lost_items(lost_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL lost_id"
+    },
+    {
+      "table_name": "claims",
+      "contype": "p",
+      "definition": "PRIMARY KEY (claim_id)"
+    },
+    {
+      "table_name": "claims",
+      "contype": "c",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['Pending'::character varying, 'Approved'::character varying, 'Rejected'::character varying])::text[])))"
+    },
+    {
+      "table_name": "claims",
+      "contype": "n",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL category_id"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL description"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL found_date"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL found_id"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL item_name"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL location"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "p",
+      "definition": "PRIMARY KEY (found_id)"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "c",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['Available'::character varying, 'Returned'::character varying])::text[])))"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "found_items",
+      "contype": "n",
+      "definition": "NOT NULL user_id"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL category_id"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL description"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL item_name"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL location"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL lost_date"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL lost_id"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "p",
+      "definition": "PRIMARY KEY (lost_id)"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "c",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['Lost'::character varying, 'Resolved'::character varying])::text[])))"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "lost_items",
+      "contype": "n",
+      "definition": "NOT NULL user_id"
+    },
+    {
+      "table_name": "users",
+      "contype": "u",
+      "definition": "UNIQUE (email)"
+    },
+    {
+      "table_name": "users",
+      "contype": "n",
+      "definition": "NOT NULL email"
+    },
+    {
+      "table_name": "users",
+      "contype": "n",
+      "definition": "NOT NULL full_name"
+    },
+    {
+      "table_name": "users",
+      "contype": "n",
+      "definition": "NOT NULL password_hash"
+    },
+    {
+      "table_name": "users",
+      "contype": "p",
+      "definition": "PRIMARY KEY (user_id)"
+    },
+    {
+      "table_name": "users",
+      "contype": "c",
+      "definition": "CHECK (((role)::text = ANY ((ARRAY['student'::character varying, 'admin'::character varying])::text[])))"
+    },
+    {
+      "table_name": "users",
+      "contype": "n",
+      "definition": "NOT NULL role"
+    },
+    {
+      "table_name": "users",
+      "contype": "n",
+      "definition": "NOT NULL user_id"
+    }
+  ]
+}
