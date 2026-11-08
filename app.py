@@ -12,8 +12,9 @@ from db import get_connection
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-if not app.config["SECRET_KEY"]:
-    raise RuntimeError("Set SECRET_KEY in .env before starting FoundDesk.")
+if (not app.config["SECRET_KEY"] or not app.config["SECRET_KEY"].strip()
+        or app.config["SECRET_KEY"].strip() == "replace_with_a_random_secret_key"):
+    raise RuntimeError("Set SECRET_KEY to your own random value in .env before starting FoundDesk.")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
