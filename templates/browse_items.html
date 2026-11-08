@@ -2,28 +2,28 @@
 {% block title %}Browse Items | FoundDesk{% endblock %}
 {% block content %}
     <h2>Browse Items</h2>
-    <form class="search-row" action="{{ url_for('browse_items') }}" method="get">
-        <label>Keyword / item name
+    <form action="{{ url_for('browse_items') }}" method="get">
+        <p><label>Keyword / item name<br>
             <input name="keyword" maxlength="150" value="{{ filters.keyword }}">
-        </label>
-        <label>Category
+        </label></p>
+        <p><label>Category<br>
             <select name="category_id">
                 <option value="">All categories</option>
                 {% for category in categories %}
                     <option value="{{ category.category_id }}" {% if filters.category_id|int == category.category_id %}selected{% endif %}>{{ category.category_name }}</option>
                 {% endfor %}
             </select>
-        </label>
-        <label>Location
+        </label></p>
+        <p><label>Location<br>
             <input name="location" maxlength="200" value="{{ filters.location }}">
-        </label>
-        <label>Type
+        </label></p>
+        <p><label>Type<br>
             <select name="type">
                 {% for item_type in ('All', 'Lost', 'Found') %}
                     <option value="{{ item_type }}" {% if filters.type == item_type %}selected{% endif %}>{{ item_type }}</option>
                 {% endfor %}
             </select>
-        </label>
+        </label></p>
         <button type="submit">Search</button>
         <a href="{{ url_for('browse_items') }}">Clear filters</a>
     </form>

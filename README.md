@@ -3,6 +3,19 @@
 Lost and Found Item Tracking System — a college DBMS mini project using Python,
 Flask, PostgreSQL, psycopg 3, Jinja/HTML and basic CSS.
 
+## Mandatory simple UI
+
+Keep the UI suitable for a college DBMS mini project: plain HTML forms and tables,
+basic CSS, and Flask Jinja2 templates. No frontend frameworks or animations.
+[Development requirements](AGENTS.md) preserve this rule for future changes.
+[UI and viva walkthrough](docs/ui_walkthrough.md) explains every template, HTML
+element, route, database operation and manual test flow. The search form uses plain
+stacked fields; existing backend queries, security and transactions are preserved.
+
+Current UI revision: all 42 non-DB tests pass. The configured PostgreSQL database
+was unavailable in this environment, so database workflows and browser layout were
+not reverified for this change. The Phase 12 results below are historical evidence.
+
 **Phase 12 status: the core local PostgreSQL/browser workflow is verified.**
 All 42 non-DB tests and 18 real PostgreSQL integration tests passed on 2026-11-08.
 Real screenshots and SQL output are included. Extended unexecuted variants and
