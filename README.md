@@ -957,6 +957,117 @@ Phase 8 verification: Python compilation and all 29 unittest checks passed.
 
 Suggested commit: `feat: implement lost item ownership claims` (do not auto-commit).
 
+## Phase 9: Admin claim decisions
+
+Admins have a plain Pending Claims dashboard at `/admin`. Approve resolves the
+lost report, marks the found item Returned and rejects other Pending claims that
+share either item. Reject changes only the selected Pending claim to Rejected.
+Decided claims cannot be decided again. Claim reasons are visible here to admins
+and in My Claims to their claimant, never on shared report/detail pages.
+
+### Files and code walkthrough
+
+- `app.py`: `admin_required()` combines login protection with the session's admin
+  role check. `admin_dashboard()` joins claims/users/lost/found tables and loads
+  only Pending claims, oldest first. `decide_claim()` accepts POST approve/reject,
+  validates the action and ID, and handles all decision writes in one connection
+  transaction with bound parameters. Success is flashed only after commit.
+- `templates/admin.html`: table with claimant, item IDs/names/links, escaped reason,
+  date and separate CSRF-protected POST forms, plus empty/unavailable states.
+- `templates/base.html`: shows the Admin link only for logged-in admin sessions.
+- `tests/test_admin.py`: non-DB checks for role/login protection, POST/CSRF,
+  invalid IDs/actions, outages, rendering, escaping and admin navigation.
+- `docs/testing_checklist.md`: unverified PostgreSQL scenarios for atomic updates,
+  competing approvals, shared lost/found conflicts, approve/reject races and rollback.
+
+### Transaction, consistency and queries
+
+No schema change is required. Approval first reads the claim's foreign keys.
+It locks the found row, then the lost row using `SELECT ... FOR UPDATE`, matching
+submission's item lock order. It then locks every claim sharing either item in
+claim ID order. This coordinates overlapping decisions while keeping claim-row
+locks in a common order. After waiting for locks it rechecks the selected claim
+is Pending, found is Available, lost is Lost, claimant owns the lost report and
+does not own the found report, and no related claim is already Approved.
+
+All four writes run in the same psycopg connection context: the selected claim
+becomes Approved, found becomes Returned, lost becomes Resolved, and other Pending
+claims sharing either item become Rejected. Commit makes the changes visible
+together; an exception or conflict rolls back the transaction and releases locks.
+Another approval sharing either item must wait and then observe the updated
+status, preventing contradictory approvals through these application routes.
+Direct manual SQL is outside these application checks; do not bypass the workflow.
+
+The important SQL statements use the following forms (values are bound separately):
+
+```sql
+SELECT c.claim_id, c.lost_id, c.found_id, c.claim_reason, c.claim_date,
+       u.full_name AS claimant_name, l.item_name AS lost_item_name,
+       f.item_name AS found_item_name
+FROM claims AS c
+JOIN users AS u ON u.user_id = c.claimant_id
+JOIN lost_items AS l ON l.lost_id = c.lost_id
+JOIN found_items AS f ON f.found_id = c.found_id
+WHERE c.status = 'Pending' ORDER BY c.claim_date, c.claim_id;
+
+SELECT lost_id, found_id, claimant_id FROM claims WHERE claim_id = %s;
+SELECT user_id, status FROM found_items WHERE found_id = %s FOR UPDATE;
+SELECT user_id, status FROM lost_items WHERE lost_id = %s FOR UPDATE;
+SELECT claim_id, status FROM claims
+WHERE found_id = %s OR lost_id = %s ORDER BY claim_id FOR UPDATE;
+
+UPDATE claims SET status = 'Approved' WHERE claim_id = %s;
+UPDATE found_items SET status = 'Returned' WHERE found_id = %s;
+UPDATE lost_items SET status = 'Resolved' WHERE lost_id = %s;
+UPDATE claims SET status = 'Rejected'
+WHERE claim_id <> %s AND status = 'Pending' AND (found_id = %s OR lost_id = %s);
+
+-- Reject uses a conditional UPDATE; concurrent decisions recheck Pending.
+UPDATE claims SET status = 'Rejected'
+WHERE claim_id = %s AND status = 'Pending' RETURNING claim_id;
+```
+
+Missing claims/invalid actions give 404, repeated/ineligible decisions give 409,
+non-admin users give 403 and database errors give 503. A connection error during
+commit may leave the result uncertain; refresh the dashboard before retrying.
+The private dashboard query runs only after the server role check; hiding the
+navigation link is a convenience, not the authorization mechanism.
+
+### Run and test (Windows PowerShell)
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q app.py db.py tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m flask --app app run
+```
+
+After installing PostgreSQL and initializing the database using the earlier steps,
+register the intended administrator normally. In local psql/pgAdmin, promote only
+that account using its actual email (replace the example):
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'your-admin-email@example.com';
+```
+
+Log out and back in so the session receives the role. Registration always creates
+students and cannot self-assign admin. Existing sessions keep their login role;
+log out/in after role changes. Visit `http://127.0.0.1:5000/admin`, inspect Pending
+claims, and use Approve/Reject. SQL execution, successful decisions, rollback and
+concurrency checks remain unverified until Phase 12 with real PostgreSQL. Follow
+`docs/testing_checklist.md`; automated tests do not use a substitute database.
+Phase 9 verification: Python compilation and all 35 unittest checks passed.
+
+### Phase 9 viva questions
+
+1. **Why approve in a transaction?** Claim and item statuses must commit together
+   or all roll back, avoiding partial decisions.
+2. **Why SELECT FOR UPDATE?** Row locks make competing decisions wait, then recheck
+   eligibility against committed statuses before writing.
+3. **Why reject conflicts for both item IDs?** A found item can return to one owner,
+   and a resolved lost report must not also approve a different found item.
+
+Suggested commit: `feat: add admin claim verification workflow` (do not auto-commit).
+
 ## Viva questions
 
 1. **What does a Flask route do?** It maps a URL to a Python function that returns

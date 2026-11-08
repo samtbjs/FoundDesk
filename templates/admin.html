@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Admin | FoundDesk{% endblock %}
+{% block content %}
+    <h2>Pending Claims</h2>
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% elif claims %}
+        <p>Approve after verifying ownership. Approval resolves the lost report, marks the found item Returned, and rejects other Pending claims for either item.</p>
+        <table>
+            <thead><tr><th scope="col">Claim ID</th><th scope="col">Claimant</th><th scope="col">Lost item</th><th scope="col">Found item</th><th scope="col">Private reason</th><th scope="col">Date</th><th scope="col">Decision</th></tr></thead>
+            <tbody>
+                {% for claim in claims %}
+                    <tr>
+                        <td>{{ claim.claim_id }}</td><td>{{ claim.claimant_name }}</td>
+                        <td><a href="{{ url_for('item_detail', item_type='Lost', item_id=claim.lost_id) }}">#{{ claim.lost_id }} — {{ claim.lost_item_name }}</a></td>
+                        <td><a href="{{ url_for('item_detail', item_type='Found', item_id=claim.found_id) }}">#{{ claim.found_id }} — {{ claim.found_item_name }}</a></td>
+                        <td class="item-description">{{ claim.claim_reason }}</td><td>{{ claim.claim_date }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('decide_claim', claim_id=claim.claim_id, decision='approve') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('decide_claim', claim_id=claim.claim_id, decision='reject') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif claims is not none %}
+        <p>No pending claims.</p>
+    {% endif %}
+    <p><a href="{{ url_for('admin_dashboard') }}">Refresh dashboard</a></p>
+{% endblock %}

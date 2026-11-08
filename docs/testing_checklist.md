@@ -91,6 +91,75 @@ JOIN found_items AS f ON f.found_id = c.found_id
 ORDER BY c.claim_id DESC;
 ```
 
+## Phase 9: Admin decisions (all DB/transaction/concurrency checks unverified)
+
+Setup: register students A/B/C and an administrator account, promote only the
+intended admin through trusted local SQL, then log out/in to refresh its session
+role. Use actual IDs, valid CSRF tokens and a disposable local test database.
+
+1. Confirm logged-out admin requests redirect to login; student admin GETs and
+   POSTs with valid CSRF give 403. GET on either decision URL gives 405. Missing or
+   wrong CSRF cannot change data. The Admin link appears only for admin sessions.
+2. Submit claims from different students. `/admin` must display only Pending claims,
+   oldest date/ID first, with claimant name, item IDs/names/links, escaped private
+   reason, date, and two POST forms. Students must still see only their own claims
+   in My Claims; public report/detail pages must not disclose reasons.
+3. Prepare pending pairs (L1,F1), (L2,F1), (L1,F2), plus unrelated (L3,F3).
+   Approve (L1,F1). Check that this claim is Approved, F1 Returned, L1 Resolved,
+   both competing claims Rejected, and the unrelated pair is still Pending.
+   Previously Rejected claims stay Rejected. Confirm all changes commit together.
+4. Reject the unrelated claim. Only its status must change to Rejected; both item
+   statuses must remain unchanged. Repeated approve/reject requests on any decided
+   claim give 409. Unknown action, missing claim, zero/oversized ID give 404.
+5. With a Pending claim, manually set its found status Returned or lost status
+   Resolved using pgAdmin. Approval gives 409 and must change nothing. Also test
+   an inconsistent preexisting Approved claim for either item while statuses are
+   manually reset: the explicit approved-conflict check must prevent a new approval.
+6. Use two admin sessions and two pending claims sharing F1. Submit approvals
+   concurrently: at most one succeeds, its competitor becomes Rejected, and the
+   other request gives 409 after waiting. Repeat with two claims sharing L1 and
+   different found items. The unused found item must remain Available.
+7. Repeat with crossing pairs (L1,F1), (L2,F2), (L1,F2), (L2,F1), approving the first
+   two concurrently. They can both succeed; the crossing claims become Rejected.
+   Ordered claim locks should avoid locking the overlaps in opposite orders.
+8. Race approve and reject of the same claim. Exactly one decision succeeds; the
+   other gives 409. If rejection wins, item statuses remain unchanged. If approval
+   wins, item statuses and conflicting claims must match the committed approval.
+9. Race claim submission against approval sharing a found or lost item. The common
+   found-then-lost lock order must ensure submission either precedes the decision
+   and is included among conflicts, or sees ineligible status and does not insert.
+10. Test rollback on a failure after the first approval UPDATE in a disposable DB.
+    One reproducible approach in psql/pgAdmin is to temporarily add this constraint:
+    `ALTER TABLE found_items ADD CONSTRAINT phase9_test_failure CHECK (status <> 'Returned') NOT VALID;`
+    Approve an otherwise eligible Pending claim: expect 503 and verify the claim is
+    still Pending, both original item statuses remain, and no competitors changed.
+    Remove the test constraint afterward:
+    `ALTER TABLE found_items DROP CONSTRAINT phase9_test_failure;`
+    NOT VALID permits existing Returned rows but still checks new updates. Never
+    apply this deliberate failure constraint to a real-use database.
+11. Stop PostgreSQL: dashboard/decisions return 503 without private connection data,
+    false success or a false empty state. Restart and refresh before retrying a
+    decision, especially if a connection was lost during commit.
+12. Confirm approved reports are no longer editable/claimable via prior routes and
+    claim-linked deletion remains blocked. My Claims must reflect all decisions.
+
+Verification queries (run as the local test DB owner):
+
+```sql
+SELECT c.claim_id, c.lost_id, c.found_id, c.status AS claim_status,
+       l.status AS lost_status, f.status AS found_status
+FROM claims AS c
+JOIN lost_items AS l ON l.lost_id = c.lost_id
+JOIN found_items AS f ON f.found_id = c.found_id
+ORDER BY c.claim_id;
+
+-- Both duplicate-approval checks should return no rows.
+SELECT found_id, COUNT(*) FROM claims WHERE status = 'Approved'
+GROUP BY found_id HAVING COUNT(*) > 1;
+SELECT lost_id, COUNT(*) FROM claims WHERE status = 'Approved'
+GROUP BY lost_id HAVING COUNT(*) > 1;
+```
+
 ## Commands after PostgreSQL installation (PowerShell)
 
 ```powershell

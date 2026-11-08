@@ -752,5 +752,133 @@ def my_claims():
     return render_template("my_claims.html", claims=claims, error=error), 503 if error else 200
 
 
+def admin_required(view):
+    @wraps(view)
+    @login_required
+    def wrapped_view(*args, **kwargs):
+        if session.get("role") != "admin":
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    claims = None
+    error = None
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT c.claim_id, c.lost_id, c.found_id, c.claim_reason,
+                           c.claim_date, u.full_name AS claimant_name,
+                           l.item_name AS lost_item_name, f.item_name AS found_item_name
+                    FROM claims AS c
+                    JOIN users AS u ON u.user_id = c.claimant_id
+                    JOIN lost_items AS l ON l.lost_id = c.lost_id
+                    JOIN found_items AS f ON f.found_id = c.found_id
+                    WHERE c.status = 'Pending'
+                    ORDER BY c.claim_date, c.claim_id
+                    """
+                )
+                claims = cursor.fetchall()
+    except psycopg.Error:
+        error = "Admin claims are unavailable. Check the database connection and try again."
+    return render_template("admin.html", claims=claims, error=error), 503 if error else 200
+
+
+@app.route("/admin/claims/<int:claim_id>/<decision>", methods=["POST"])
+@admin_required
+def decide_claim(claim_id, decision):
+    if decision not in ("approve", "reject") or not 1 <= claim_id <= 2147483647:
+        abort(404)
+    try:
+        # All writes below commit together, or roll back on any exception.
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT lost_id, found_id, claimant_id FROM claims WHERE claim_id = %s",
+                    (claim_id,),
+                )
+                claim = cursor.fetchone()
+                if claim is None:
+                    abort(404)
+                if decision == "reject":
+                    cursor.execute(
+                        """
+                        UPDATE claims SET status = 'Rejected'
+                        WHERE claim_id = %s AND status = 'Pending'
+                        RETURNING claim_id
+                        """,
+                        (claim_id,),
+                    )
+                    if cursor.fetchone() is None:
+                        abort(409, description="This claim has already been decided. Refresh the dashboard.")
+                else:
+                    # Use the same item lock order as claim submission: found, then lost.
+                    cursor.execute(
+                        "SELECT user_id, status FROM found_items WHERE found_id = %s FOR UPDATE",
+                        (claim["found_id"],),
+                    )
+                    found_item = cursor.fetchone()
+                    cursor.execute(
+                        "SELECT user_id, status FROM lost_items WHERE lost_id = %s FOR UPDATE",
+                        (claim["lost_id"],),
+                    )
+                    lost_item = cursor.fetchone()
+                    # Lock overlapping claims by ID so competing decisions use a common order.
+                    cursor.execute(
+                        """
+                        SELECT claim_id, status FROM claims
+                        WHERE found_id = %s OR lost_id = %s
+                        ORDER BY claim_id FOR UPDATE
+                        """,
+                        (claim["found_id"], claim["lost_id"]),
+                    )
+                    related_claims = cursor.fetchall()
+                    selected_claim = next(
+                        (row for row in related_claims if row["claim_id"] == claim_id), None
+                    )
+                    if selected_claim is None or selected_claim["status"] != "Pending":
+                        abort(409, description="This claim has already been decided. Refresh the dashboard.")
+                    if (found_item is None or lost_item is None
+                            or found_item["status"] != "Available" or lost_item["status"] != "Lost"
+                            or lost_item["user_id"] != claim["claimant_id"]
+                            or found_item["user_id"] == claim["claimant_id"]
+                            or any(row["status"] == "Approved" for row in related_claims)):
+                        abort(409, description="This claim conflicts with an approved claim or ineligible item. Refresh the dashboard.")
+                    cursor.execute(
+                        "UPDATE claims SET status = 'Approved' WHERE claim_id = %s",
+                        (claim_id,),
+                    )
+                    cursor.execute(
+                        "UPDATE found_items SET status = 'Returned' WHERE found_id = %s",
+                        (claim["found_id"],),
+                    )
+                    cursor.execute(
+                        "UPDATE lost_items SET status = 'Resolved' WHERE lost_id = %s",
+                        (claim["lost_id"],),
+                    )
+                    cursor.execute(
+                        """
+                        UPDATE claims SET status = 'Rejected'
+                        WHERE claim_id <> %s AND status = 'Pending'
+                          AND (found_id = %s OR lost_id = %s)
+                        """,
+                        (claim_id, claim["found_id"], claim["lost_id"]),
+                    )
+        flash("Claim approved and conflicting pending claims rejected. Items marked Returned and Resolved."
+              if decision == "approve" else "Claim rejected. Item statuses were not changed.")
+        return redirect(url_for("admin_dashboard"))
+    except psycopg.Error:
+        return render_template(
+            "admin.html", claims=None,
+            error="The claim decision could not be saved. Refresh the dashboard and check its current status before trying again.",
+        ), 503
+
+
 if __name__ == "__main__":
     app.run()
