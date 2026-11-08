@@ -767,10 +767,12 @@ def admin_required(view):
 @admin_required
 def admin_dashboard():
     claims = None
+    totals = None
     error = None
     try:
         with get_connection() as connection:
             with connection.cursor() as cursor:
+                totals = load_report_totals(cursor)
                 cursor.execute(
                     """
                     SELECT c.claim_id, c.lost_id, c.found_id, c.claim_reason,
@@ -787,7 +789,7 @@ def admin_dashboard():
                 claims = cursor.fetchall()
     except psycopg.Error:
         error = "Admin claims are unavailable. Check the database connection and try again."
-    return render_template("admin.html", claims=claims, error=error), 503 if error else 200
+    return render_template("admin.html", claims=claims, totals=totals, error=error), 503 if error else 200
 
 
 @app.route("/admin/claims/<int:claim_id>/<decision>", methods=["POST"])
@@ -878,6 +880,83 @@ def decide_claim(claim_id, decision):
             "admin.html", claims=None,
             error="The claim decision could not be saved. Refresh the dashboard and check its current status before trying again.",
         ), 503
+
+
+def load_report_totals(cursor):
+    cursor.execute(
+        """
+        SELECT (SELECT COUNT(*) FROM lost_items) AS lost_count,
+               (SELECT COUNT(*) FROM found_items) AS found_count,
+               (SELECT COUNT(*) FROM claims WHERE status = 'Pending') AS pending_count,
+               (SELECT COUNT(*) FROM found_items WHERE status = 'Returned') AS returned_count
+        """
+    )
+    return cursor.fetchone()
+
+
+@app.route("/reports")
+@admin_required
+def reports():
+    totals = None
+    category_counts = []
+    claim_counts = []
+    unresolved_items = []
+    returned_items = []
+    error = None
+    try:
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                totals = load_report_totals(cursor)
+                # Aggregate each item table first so joins cannot multiply counts.
+                cursor.execute(
+                    """
+                    SELECT c.category_name, COALESCE(l.lost_count, 0) AS lost_count,
+                           COALESCE(f.found_count, 0) AS found_count
+                    FROM categories AS c
+                    LEFT JOIN (
+                        SELECT category_id, COUNT(*) AS lost_count FROM lost_items GROUP BY category_id
+                    ) AS l ON l.category_id = c.category_id
+                    LEFT JOIN (
+                        SELECT category_id, COUNT(*) AS found_count FROM found_items GROUP BY category_id
+                    ) AS f ON f.category_id = c.category_id
+                    ORDER BY c.category_name
+                    """
+                )
+                category_counts = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT s.status, COUNT(c.claim_id) AS claim_count
+                    FROM (VALUES ('Pending'), ('Approved'), ('Rejected')) AS s(status)
+                    LEFT JOIN claims AS c ON c.status = s.status
+                    GROUP BY s.status ORDER BY s.status
+                    """
+                )
+                claim_counts = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT l.lost_id, l.item_name, c.category_name, l.location, l.lost_date
+                    FROM lost_items AS l
+                    INNER JOIN categories AS c ON c.category_id = l.category_id
+                    WHERE l.status = 'Lost' ORDER BY l.lost_date DESC, l.lost_id DESC
+                    """
+                )
+                unresolved_items = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT f.found_id, f.item_name, c.category_name, f.location, f.found_date
+                    FROM found_items AS f
+                    INNER JOIN categories AS c ON c.category_id = f.category_id
+                    WHERE f.status = 'Returned' ORDER BY f.found_date DESC, f.found_id DESC
+                    """
+                )
+                returned_items = cursor.fetchall()
+    except psycopg.Error:
+        error = "Reports are unavailable. Check the database connection and schema, then try again."
+    return render_template(
+        "reports.html", totals=totals, category_counts=category_counts,
+        claim_counts=claim_counts, unresolved_items=unresolved_items,
+        returned_items=returned_items, error=error,
+    ), 503 if error else 200
 
 
 if __name__ == "__main__":

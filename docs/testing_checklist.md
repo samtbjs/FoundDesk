@@ -160,6 +160,35 @@ SELECT lost_id, COUNT(*) FROM claims WHERE status = 'Approved'
 GROUP BY lost_id HAVING COUNT(*) > 1;
 ```
 
+## Phase 10: SQL reports (all database checks unverified)
+
+1. With an empty initialized database, log in as admin. Dashboard/Reports totals
+   must be zero. Seeded categories must appear with zero lost/found counts and
+   all three claim statuses must appear with zero counts. Item lists are empty.
+2. In a disposable test database, create two lost and three found reports in one
+   category. The report must show 2/3, never 6/6. Keep another category unused to
+   verify LEFT JOIN zeros. Compare category column sums to overall item totals.
+3. Add Pending/Approved/Rejected claims through the application workflows. Compare
+   the claim status counts and Pending total with direct COUNT queries. Approve
+   a claim and verify Returned increases while overall lost/found totals stay fixed.
+4. Unresolved list must include only Lost; returned list only Returned. Compare
+   names/categories/locations/event dates and links to the real rows. Newest dates
+   come first with descending IDs for date ties. Do not infer a return date from
+   found_date. No private reasons/account data should appear on Reports.
+5. With no concurrent writes, compare queries.sql Q2–Q4, Q6–Q7 against the page.
+   Test Q5 below/at/above its HAVING threshold and Q8 with no, Pending and decided
+   claims. SQL execution is not covered by the Python template tests.
+6. Run complete Q9 and Q10 blocks twice in pgAdmin/psql. Verify rollback removes
+   temporary objects and application data/identity sequences stay unchanged. Never
+   replace the temporary demo targets with application tables.
+7. Logged-out Reports requests must redirect to login and student requests give
+   403. Stop PostgreSQL: dashboard/Reports must return 503 without partial/zero
+   summaries or credentials. Restore the server and verify recovery.
+8. Verify escaped item/category/location text and plain tables in a narrow window.
+   Repeat prior admin/claim/report checks after these changes.
+
+See sql_reports.md for each query's meaning and precise pgAdmin execution steps.
+
 ## Commands after PostgreSQL installation (PowerShell)
 
 ```powershell

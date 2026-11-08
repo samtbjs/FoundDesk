@@ -1,15 +1,17 @@
-# FoundDesk database design — Phase 2
+# FoundDesk database design — updated through Phase 10
 
 FoundDesk uses five PostgreSQL tables. A row represents one user, category,
-lost report, found report or claim. The Flask application does not connect to
-the database in this phase.
+lost report, found report or claim. The schema was introduced in Phase 2;
+the current Flask application uses it for reports, claims, decisions and SQL summaries.
 
 ## Files and execution order
 
 1. `database/schema.sql` creates the five tables and their constraints.
 2. `database/sample_data.sql` inserts the six initial categories.
+3. `database/queries.sql` is an optional Phase 10 teaching script with SELECTs and
+   temporary rollback demos, not a schema migration. See `sql_reports.md`.
 
-Each script uses `BEGIN` and `COMMIT` so its changes are applied together as a
+The schema and category scripts use `BEGIN` and `COMMIT` so their changes are applied together as a
 transaction. Run the schema once in an empty database. It deliberately does not
 drop existing tables or silently skip existing definitions. If a script fails
 inside its transaction, run `ROLLBACK;` before correcting and retrying it.
@@ -101,10 +103,11 @@ Stores a person's request linking one lost report to one found report.
 `UNIQUE (lost_id, found_id)` prevents the same pair from being claimed twice,
 even by a different user or after rejection. Each report may still appear in
 claims involving different reports. The pair is also an alternate candidate key.
-The schema records the claimant separately from the report's author; it does not
-assume they must be the same person. Any ownership or approval workflow rules
-must be defined and enforced in a later phase. Changing a claim's status does
-not automatically change either report's status.
+The schema records the claimant separately from the report's author; its foreign
+keys do not enforce equality. The Phase 8 route now requires the claimant to own
+the lost report. The Phase 9 approval route rechecks this and updates item statuses
+in one transaction. Directly changing a claim status in SQL does not trigger those
+updates. The redundancy created by this ownership policy is discussed below.
 
 ## Relationships and deletion rules
 
@@ -188,7 +191,7 @@ erDiagram
 The diagram's individual FK markers do not show the composite uniqueness rule;
 `claims` additionally has `UNIQUE (lost_id, found_id)`.
 
-## Why separate tables? Normalization to 3NF
+## Why separate tables? 1NF, 2NF and 3NF
 
 A single large table would repeat a user's name, email and password hash on every
 report or claim. A category's name would also repeat. Updating one copy while
@@ -201,12 +204,38 @@ Separate tables avoid these problems:
 
 - **1NF:** Each column stores one value, and each row has a primary key. There
   are no lists of claim IDs or repeated item columns inside one row.
-- **2NF:** Non-key attributes depend on the whole candidate key. For claims,
-  the reason, date, status and claimant describe the particular lost/found pair,
-  rather than either report alone.
-- **3NF:** Non-key attributes do not depend on other non-key attributes. User
-  details stay in `users` and category names stay in `categories`; report rows
-  contain only their IDs. Claim rows do not copy report details or user names.
+- **2NF:** A table in 1NF must have no non-key attribute depending on only part
+  of a candidate key. Users, categories, lost_items and found_items have single-column
+  candidate keys (users also has unique email; categories has unique category_name).
+  Claims has both claim_id and the alternate composite key (lost_id, found_id).
+  Reason, submission date and decision describe the pair. A surrogate claim_id alone
+  does not prove 2NF: all candidate keys and business dependencies must be considered.
+- **3NF:** A table in 2NF must also avoid non-key facts determined through another
+  non-key attribute. Here user_id determines account facts in users and category_id
+  determines category_name in categories. Reports reference those keys rather than
+  copying names/emails. For each report, its ID determines its name, description,
+  location, date, category, owner and status. These four entity tables follow 3NF
+  under the project's stated dependencies.
+
+### Current claims normalization caveat
+
+Under the implemented rule that only a lost report's owner may claim, lost_id
+determines claimant_id (through lost_items.user_id). Therefore claimant_id is
+redundant: it depends on part of the alternate (lost_id, found_id) key and is also
+transitively determined from claim_id through lost_id. Under that business rule,
+claims is not strictly in 2NF/3NF. The foreign keys alone do not express this rule,
+but normalization should reflect the actual application semantics, not only DDL.
+The specified five-table schema and explicit claimant_id are retained for the
+project workflow; submission and approval enforce agreement with the lost owner.
+A stricter future design could remove claimant_id and obtain the claimant through
+the lost report, updating the related queries/routes. No such migration is part
+of Phase 10. This limitation should be stated in the viva rather than claiming
+the entire implemented schema is unconditionally in 3NF.
+
+Counts in the dashboard are derived with COUNT/GROUP BY; they are not stored in
+categories or reports, so adding/removing reports does not require updating cached
+count columns. The temporary view in queries.sql stores a query definition, not
+duplicate application rows.
 
 Lost and found reports have similar columns but describe independent events with
 different dates and status values. Keeping them separate follows this project's
@@ -299,9 +328,9 @@ psql -h localhost -U your_postgres_user -d founddesk -c 'SELECT category_name FR
    exists, for example the user who submitted a lost report.
 2. **Why use a composite UNIQUE constraint on claims?** It rejects a repeated
    lost/found pair while allowing each report to appear with different reports.
-3. **How does this design satisfy 3NF?** Each table stores facts about its own
-   entity, and user or category details are referenced through keys rather than
-   repeated in reports.
+3. **Is the entire current schema strictly in 3NF?** The four entity tables avoid
+   duplicated account/category facts. Claims retains a redundant claimant_id under
+   the owner-only claim rule, so strict 2NF/3NF is not satisfied there.
 
 ## References
 

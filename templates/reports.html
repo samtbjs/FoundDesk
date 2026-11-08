@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Reports | FoundDesk{% endblock %}
+{% block content %}
+    <h2>Reports</h2>
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% else %}
+        {% include "report_totals.html" %}
+        <h3>Reports by Category</h3>
+        {% if category_counts %}
+            <table>
+                <thead><tr><th scope="col">Category</th><th scope="col">Lost reports</th><th scope="col">Found reports</th></tr></thead>
+                <tbody>{% for row in category_counts %}<tr><td>{{ row.category_name }}</td><td>{{ row.lost_count }}</td><td>{{ row.found_count }}</td></tr>{% endfor %}</tbody>
+            </table>
+        {% else %}<p>No categories are available.</p>{% endif %}
+        <h3>Claim Status Counts</h3>
+        <table>
+            <thead><tr><th scope="col">Status</th><th scope="col">Claims</th></tr></thead>
+            <tbody>{% for row in claim_counts %}<tr><td>{{ row.status }}</td><td>{{ row.claim_count }}</td></tr>{% endfor %}</tbody>
+        </table>
+        <h3>Unresolved Lost Items</h3>
+        {% if unresolved_items %}
+            <table>
+                <thead><tr><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Location</th><th scope="col">Date lost</th></tr></thead>
+                <tbody>{% for item in unresolved_items %}<tr><td><a href="{{ url_for('item_detail', item_type='Lost', item_id=item.lost_id) }}">{{ item.item_name }}</a></td><td>{{ item.category_name }}</td><td>{{ item.location }}</td><td>{{ item.lost_date }}</td></tr>{% endfor %}</tbody>
+            </table>
+        {% else %}<p>No unresolved lost items.</p>{% endif %}
+        <h3>Returned Items</h3>
+        <p>The date shown is the date found.</p>
+        {% if returned_items %}
+            <table>
+                <thead><tr><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Location</th><th scope="col">Date found</th></tr></thead>
+                <tbody>{% for item in returned_items %}<tr><td><a href="{{ url_for('item_detail', item_type='Found', item_id=item.found_id) }}">{{ item.item_name }}</a></td><td>{{ item.category_name }}</td><td>{{ item.location }}</td><td>{{ item.found_date }}</td></tr>{% endfor %}</tbody>
+            </table>
+        {% else %}<p>No returned items.</p>{% endif %}
+    {% endif %}
+    <p><a href="{{ url_for('reports') }}">Refresh reports</a></p>
+{% endblock %}

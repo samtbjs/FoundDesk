@@ -1068,6 +1068,71 @@ Phase 9 verification: Python compilation and all 35 unittest checks passed.
 
 Suggested commit: `feat: add admin claim verification workflow` (do not auto-commit).
 
+## Phase 10: SQL dashboard and reports
+
+The admin dashboard now shows lost-report, found-report, Pending-claim and
+Returned-item totals. Admin-only `/reports` adds category counts (including unused
+categories), counts for all three claim statuses, unresolved losses and Returned
+found reports, using plain server-rendered tables. Counts and lists are derived
+from PostgreSQL SELECTs; no schema migration, financial fields or chart libraries
+are introduced. Returned reports show their found date because no return-date
+column exists.
+
+### Files and walkthrough
+
+- `app.py`: shared `load_report_totals()` uses four COUNT subqueries. Dashboard
+  calls it; `reports()` adds grouped category/status queries and two filtered lists.
+  Each item table is aggregated before category joins to avoid multiplied counts.
+  Both routes require the existing admin decorator and suppress partial results on
+  DB failure (503). No user input is inserted into SQL.
+- `templates/report_totals.html`: shared four-total table.
+- `templates/reports.html`: report sections, item links and empty/error states.
+- `templates/admin.html` and `templates/base.html`: dashboard totals and Reports links.
+- `database/queries.sql`: ten explained teaching queries covering SELECT/WHERE,
+  ORDER BY, COUNT, GROUP BY, HAVING, INNER/LEFT JOIN, subqueries, CREATE VIEW and DML.
+  Demo view/table objects are temporary and enclosed in rollback transactions;
+  INSERT/UPDATE/DELETE never target application tables or identity sequences.
+- `docs/sql_reports.md`: full query explanations, count semantics and pgAdmin guide.
+- `docs/database_design.md`: current schema/workflow and accurate 1NF/2NF/3NF discussion.
+- `tests/test_reports.py` and `docs/testing_checklist.md`: non-DB checks and deferred
+  real PostgreSQL scenarios, including zero categories/statuses and join fan-out.
+
+See [SQL reports guide](docs/sql_reports.md) for every SQL query and execution step,
+and [database design](docs/database_design.md) for normalization. The four entity
+tables avoid duplicated account/category facts. Claims has a documented limitation:
+the owner-only policy makes claimant_id depend on lost_id, so retaining that column
+does not strictly satisfy 2NF/3NF. The requested schema is preserved, not silently
+changed to support an inaccurate normalization claim.
+
+### Run and test (PowerShell)
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q app.py db.py tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m flask --app app run
+```
+
+After local PostgreSQL setup, log in as admin and open
+`http://127.0.0.1:5000/admin` and `http://127.0.0.1:5000/reports`.
+In pgAdmin select the initialized database, open Tools > Query Tool and load
+`database/queries.sql`. Execute a full Q1–Q8 statement; execute Q9/Q10 only as whole
+BEGIN-through-ROLLBACK blocks. The script is optional for Flask and creates no
+lasting objects. Successful SQL/report reads remain unverified until Phase 12;
+follow `docs/testing_checklist.md`. Automated tests exercise access, templates,
+escaping, zero/error states and outages without a substitute database.
+Phase 10 verification: Python compilation and all 40 unittest checks passed.
+
+### Phase 10 viva questions
+
+1. **WHERE versus HAVING?** WHERE filters rows before grouping; HAVING filters
+   aggregate groups, such as categories with at least two unresolved losses.
+2. **Why LEFT JOIN category counts?** It retains categories with no reports;
+   COALESCE displays their missing counts as zero.
+3. **Why aggregate lost/found tables before joining?** Joining raw rows can multiply
+   them and inflate counts when both tables have several reports in one category.
+
+Suggested commit: `feat: add SQL reports and database queries` (do not auto-commit).
+
 ## Viva questions
 
 1. **What does a Flask route do?** It maps a URL to a Python function that returns
